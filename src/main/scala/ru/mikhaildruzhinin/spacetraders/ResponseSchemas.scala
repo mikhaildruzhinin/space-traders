@@ -1,9 +1,6 @@
 package ru.mikhaildruzhinin.spacetraders
 
-import ru.mikhaildruzhinin.spacetraders.domain.Agent
-import ru.mikhaildruzhinin.spacetraders.domain.ContractDomain.Contract
-import ru.mikhaildruzhinin.spacetraders.domain.FactionDomain.Faction
-import ru.mikhaildruzhinin.spacetraders.domain.ShipDomain.Ship
+import ru.mikhaildruzhinin.spacetraders.domain._
 
 object ResponseSchemas {
   /**
@@ -25,4 +22,11 @@ object ResponseSchemas {
                                       faction: Faction,
                                       ship: Ship,
                                       token: String)
+
+  /**
+   * Successfully fetched agent details.
+   *
+   * @param data Agent details.
+   */
+  case class GetAgentResponseSchema(data: Agent)
 }

@@ -1,6 +1,6 @@
 package ru.mikhaildruzhinin.spacetraders
 
-import ru.mikhaildruzhinin.spacetraders.domain.FactionDomain.FactionSymbol
+import ru.mikhaildruzhinin.spacetraders.domain.FactionSymbol
 
 object RequestSchemas {
 

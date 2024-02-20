@@ -2,8 +2,8 @@ package ru.mikhaildruzhinin.spacetraders
 
 import io.circe
 import io.circe.generic.auto._
-import ru.mikhaildruzhinin.spacetraders.RequestSchemas.RegistrationRequestSchema
-import ru.mikhaildruzhinin.spacetraders.ResponseSchemas.RegistrationResponseSchema
+import ru.mikhaildruzhinin.spacetraders.RequestSchemas._
+import ru.mikhaildruzhinin.spacetraders.ResponseSchemas._
 import sttp.client3._
 import sttp.client3.circe._
 
@@ -39,11 +39,25 @@ object Client {
 
       basicRequest
         .post(uri"${baseUrl}/register")
-        .headers(
-          Map("Accept" -> "application/json", "Content-Type" -> "application/json")
-        )
+        .headers(Map("Accept" -> "application/json", "Content-Type" -> "application/json"))
         .body(registrationRequestSchema)
         .response(asJson[RegistrationResponseSchema])
+    }
+  }
+
+  object AgentClient extends BaseClient {
+    /**
+     * Fetch your agent's details.
+     *
+     * @param token A private bearer token which grants authorization to use the API.
+     * @return
+     */
+    def getAgent(implicit token: String) = {
+
+      basicRequest
+        .get(uri"${baseUrl}/my/agent")
+        .headers(Map("Accept" -> "application/json", "Authorization" -> s"Bearer $token"))
+        .response(asJson[GetAgentResponseSchema])
     }
   }
 }

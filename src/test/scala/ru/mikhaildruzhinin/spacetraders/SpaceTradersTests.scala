@@ -2,7 +2,7 @@ package ru.mikhaildruzhinin.spacetraders
 
 import org.scalatest.funsuite.AnyFunSuite
 import ru.mikhaildruzhinin.spacetraders.RequestSchemas._
-import ru.mikhaildruzhinin.spacetraders.domain.FactionDomain.FactionSymbol
+import ru.mikhaildruzhinin.spacetraders.domain.FactionSymbol
 import sttp.client3._
 
 import java.time.LocalDateTime
