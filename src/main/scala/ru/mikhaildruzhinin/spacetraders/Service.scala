@@ -58,6 +58,12 @@ class Service private (implicit backend: SttpBackend[Identity, Any]) {
       .getAllContracts(limit, page)(token)
       .sendRequest()
   }
+
+  def acceptContract(contractId: String, token: String): Try[ResponseSchemas.AcceptContractResponseSchema] = {
+    ContractClient
+      .acceptContract(contractId)(token)
+      .sendRequest()
+  }
 }
 
 object Service {

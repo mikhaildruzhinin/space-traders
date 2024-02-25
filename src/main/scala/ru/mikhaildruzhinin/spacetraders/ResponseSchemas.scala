@@ -57,4 +57,18 @@ object ResponseSchemas {
   case class GetAllContractResponseMetadata(total: Int,
                                             page: Int,
                                             limit: Int)
+
+  /**
+   * Succesfully accepted contract.
+   */
+  case class AcceptContractResponseSchema(data: AcceptContractResponseData)
+
+  /**
+   * Succesfully accepted contract.
+   *
+   * @param agent Agent details.
+   * @param contract Contract details.
+   */
+  case class AcceptContractResponseData(agent: Agent,
+                                        contract: Contract)
 }

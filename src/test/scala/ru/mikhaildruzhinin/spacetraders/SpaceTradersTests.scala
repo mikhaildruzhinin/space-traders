@@ -20,7 +20,10 @@ class SpaceTradersTests extends AnyFunSuite {
       agent <- service.getAgent(token).map(_.data)
       currentLocation <- service.getWaypoint(agent.headquarters, token).map(_.data)
       _ <- Try { println(currentLocation.symbol) }
-      _ <- Try { println(service.getAllContracts(token = token).map(_.data)) }
+      contractId <- service
+        .getAllContracts(token = token)
+        .flatMap(_.data.headOption.toRight(new NoSuchElementException).toTry.map(_.id))
+      _ <- Try { println(service.acceptContract(contractId, token)) }
     } yield ()
 
     assert(r.isSuccess)

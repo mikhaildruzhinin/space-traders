@@ -92,7 +92,8 @@ object Client {
      * @param token A private bearer token which grants authorization to use the API.
      * @return A paginated list of all your contracts.
      */
-    def getAllContracts(limit: Int, page: Int)(implicit token: String): RequestT[Identity, Either[ResponseException[String, CirceError], GetAllContractResponseSchema], Any] = {
+    def getAllContracts(limit: Int, page: Int)
+                       (implicit token: String): RequestT[Identity, Either[ResponseException[String, CirceError], GetAllContractResponseSchema], Any] = {
 
       val queryParams = Map(
         "limit" -> limit,
@@ -103,6 +104,25 @@ object Client {
         .get(uri"$baseUrl/my/contracts?$queryParams")
         .headers(Map("Accept" -> "application/json", "Authorization" -> s"Bearer $token"))
         .response(asJson[GetAllContractResponseSchema])
+    }
+
+    /**
+     * Accept a contract by ID.
+     *
+     * You can only accept contracts that were offered to you, were not accepted yet,
+     * and whose deadlines has not passed yet.
+     *
+     * @param contractId The contract ID to accept.
+     * @param token A private bearer token which grants authorization to use the API.
+     * @return Successfully accepted contract.
+     */
+    def acceptContract(contractId: String)
+                      (implicit token: String): RequestT[Identity, Either[ResponseException[String, CirceError], AcceptContractResponseSchema], Any] = {
+
+      basicRequest
+        .post(uri"$baseUrl/my/contracts/$contractId/accept")
+        .headers(Map("Accept" -> "application/json", "Authorization" -> s"Bearer $token"))
+        .response(asJson[AcceptContractResponseSchema])
     }
   }
 }
