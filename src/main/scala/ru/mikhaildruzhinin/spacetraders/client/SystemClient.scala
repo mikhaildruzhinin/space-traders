@@ -7,7 +7,7 @@ import sttp.client3.circe._
 
 import scala.util.Try
 
-class SystemClient private (implicit backend: SttpBackend[Identity, Any]) extends BaseClient {
+class SystemClient (implicit backend: SttpBackend[Identity, Any]) extends BaseClient {
   /**
    * View the details of a waypoint.
    *
@@ -25,8 +25,4 @@ class SystemClient private (implicit backend: SttpBackend[Identity, Any]) extend
       .headers(Map("Accept" -> "application/json", "Authorization" -> s"Bearer $token"))
       .response(asJson[GetWaypointResponse])
       .sendRequest()
-}
-
-object SystemClient {
-  def apply(backend: SttpBackend[Identity, Any]) = new SystemClient()(backend)
 }

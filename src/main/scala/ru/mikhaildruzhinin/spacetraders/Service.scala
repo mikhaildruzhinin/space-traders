@@ -3,15 +3,18 @@ package ru.mikhaildruzhinin.spacetraders
 import ru.mikhaildruzhinin.spacetraders.Exceptions._
 import ru.mikhaildruzhinin.spacetraders.Schemas._
 import ru.mikhaildruzhinin.spacetraders.client._
-import sttp.client3._
 
 import scala.util.{Failure, Success, Try}
 
-class Service private (implicit backend: SttpBackend[Identity, Any]) {
-  def register(registrationRequest: RegistrationRequest): Try[RegistrationResponse] = DefaultClient(backend)
+class Service (defaultClient: DefaultClient,
+               agentClient: AgentClient,
+               systemClient: SystemClient,
+               contractClient: ContractClient) {
+
+  def register(registrationRequest: RegistrationRequest): Try[RegistrationResponse] = defaultClient
     .register(registrationRequest)
 
-  def getAgent()(implicit token: String): Try[GetAgentResponse] = AgentClient(backend).getAgent()
+  def getAgent()(implicit token: String): Try[GetAgentResponse] = agentClient.getAgent()
 
   private def parseWaypointSymbol(waypointSymbol: String): Try[(String, String)] = {
     val pattern = """(\S+)-(\S+)-(\S+)""".r
@@ -27,7 +30,7 @@ class Service private (implicit backend: SttpBackend[Identity, Any]) {
     parseWaypointSymbol(waypointSymbol)
       .fold(
         error => Failure(error),
-        parsedWaypointSymbol => SystemClient(backend).getWaypoint(
+        parsedWaypointSymbol => systemClient.getWaypoint(
           systemSymbol = parsedWaypointSymbol._2,
           waypointSymbol = waypointSymbol
         )
@@ -35,14 +38,8 @@ class Service private (implicit backend: SttpBackend[Identity, Any]) {
   }
 
   def getAllContracts(limit: Int = 10, page: Int = 1)
-                     (implicit token: String): Try[GetAllContractResponse] = ContractClient(backend)
-    .getAllContracts(limit, page)
+                     (implicit token: String): Try[GetAllContractResponse] = contractClient.getAllContracts(limit, page)
 
   def acceptContract(contractId: String)
-                    (implicit token: String): Try[AcceptContractResponse] = ContractClient(backend)
-    .acceptContract(contractId)
-}
-
-object Service {
-  def apply(backend: SttpBackend[Identity, Any]) = new Service()(backend)
+                    (implicit token: String): Try[AcceptContractResponse] = contractClient.acceptContract(contractId)
 }

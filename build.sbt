@@ -28,5 +28,6 @@ libraryDependencies ++= Seq(
   "io.circe" %% "circe-generic" % circeVersion,
   "io.circe" %% "circe-parser" % circeVersion,
   "com.beachape" %% "enumeratum" % enumeratumVersion,
-  "com.beachape" %% "enumeratum-circe" % enumeratumVersion
+  "com.beachape" %% "enumeratum-circe" % enumeratumVersion,
+  "com.softwaremill.macwire" % "macros_2.13" % "2.5.9"
 )

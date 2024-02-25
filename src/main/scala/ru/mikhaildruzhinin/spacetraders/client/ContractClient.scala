@@ -7,7 +7,7 @@ import sttp.client3.circe._
 
 import scala.util.Try
 
-class ContractClient private (implicit backend: SttpBackend[Identity, Any]) extends BaseClient {
+class ContractClient (implicit backend: SttpBackend[Identity, Any]) extends BaseClient {
   /**
    * Return a paginated list of all your contracts.
    *
@@ -47,7 +47,4 @@ class ContractClient private (implicit backend: SttpBackend[Identity, Any]) exte
       .headers(Map("Accept" -> "application/json", "Authorization" -> s"Bearer $token"))
       .response(asJson[AcceptContractResponse])
       .sendRequest()
-}
-object ContractClient {
-  def apply(backend: SttpBackend[Identity, Any]) = new ContractClient()(backend)
 }

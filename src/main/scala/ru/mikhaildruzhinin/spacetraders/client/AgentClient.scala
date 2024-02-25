@@ -7,7 +7,7 @@ import sttp.client3.circe._
 
 import scala.util.Try
 
-class AgentClient private (implicit backend: SttpBackend[Identity, Any]) extends BaseClient {
+class AgentClient (implicit backend: SttpBackend[Identity, Any]) extends BaseClient {
   /**
    * Fetch your agent's details.
    *
@@ -19,8 +19,4 @@ class AgentClient private (implicit backend: SttpBackend[Identity, Any]) extends
       .headers(Map("Accept" -> "application/json", "Authorization" -> s"Bearer $token"))
       .response(asJson[GetAgentResponse])
       .sendRequest()
-}
-
-object AgentClient {
-  def apply(backend: SttpBackend[Identity, Any]) = new AgentClient()(backend)
 }

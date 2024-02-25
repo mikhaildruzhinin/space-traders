@@ -7,7 +7,7 @@ import sttp.client3.circe._
 
 import scala.util.Try
 
-class DefaultClient private (implicit backend: SttpBackend[Identity, Any]) extends BaseClient {
+class DefaultClient (implicit backend: SttpBackend[Identity, Any]) extends BaseClient {
   /**
    * Creates a new agent and ties it to an account.
    * The agent symbol must consist of a 3-14 character string, and will be used to represent your agent.
@@ -36,8 +36,4 @@ class DefaultClient private (implicit backend: SttpBackend[Identity, Any]) exten
       .body(registrationRequest)
       .response(asJson[RegistrationResponse])
       .sendRequest()
-}
-
-object DefaultClient {
-  def apply(backend: SttpBackend[Identity, Any]) = new DefaultClient()(backend)
 }

@@ -2,6 +2,7 @@ package ru.mikhaildruzhinin.spacetraders
 
 import org.scalatest.funsuite.AnyFunSuite
 import ru.mikhaildruzhinin.spacetraders.Schemas.RegistrationRequest
+import ru.mikhaildruzhinin.spacetraders.client.{AgentClient, ContractClient, DefaultClient, SystemClient}
 import sttp.client3._
 
 import java.time.LocalDateTime
@@ -10,10 +11,17 @@ import scala.util.Try
 
 class SpaceTradersTests extends AnyFunSuite {
   test("quickstart") {
+    import com.softwaremill.macwire._
+
     val callSign = s"test${DateTimeFormatter.ofPattern("HHmmss").format(LocalDateTime.now())}"
     val registrationRequestSchema = RegistrationRequest(callSign)
-    val backend: SttpBackend[Identity, Any] = HttpClientSyncBackend()
-    val service = Service(backend)
+    implicit lazy val backend: SttpBackend[Identity, Any] = HttpClientSyncBackend()
+
+    lazy val defaultClient = wire[DefaultClient]
+    lazy val agentClient = wire[AgentClient]
+    lazy val systemClient = wire[SystemClient]
+    lazy val contractClient = wire[ContractClient]
+    lazy val service: Service = wire[Service]
 
     val r = for {
       token <- service.register(registrationRequestSchema).map(_.data.token)
