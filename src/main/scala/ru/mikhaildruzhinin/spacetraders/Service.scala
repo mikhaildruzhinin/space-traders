@@ -1,32 +1,17 @@
 package ru.mikhaildruzhinin.spacetraders
 
-import io.circe.{Error => CirceError}
-import ru.mikhaildruzhinin.spacetraders.Client._
 import ru.mikhaildruzhinin.spacetraders.Exceptions._
 import ru.mikhaildruzhinin.spacetraders.Schemas._
+import ru.mikhaildruzhinin.spacetraders.client._
 import sttp.client3._
 
 import scala.util.{Failure, Success, Try}
 
 class Service private (implicit backend: SttpBackend[Identity, Any]) {
-  private implicit class Request[A](request: RequestT[Identity, Either[ResponseException[String, CirceError], A], Any]) {
-    def sendRequest()(implicit backend: SttpBackend[Identity, Any]): Try[A] = request
-      .send(backend)
-      .body
-      .toTry
-  }
+  def register(registrationRequest: RegistrationRequest): Try[RegistrationResponse] = DefaultClient(backend)
+    .register(registrationRequest)
 
-  def register(registrationRequestSchema: RegistrationRequest): Try[RegistrationResponse] = {
-    DefaultClient
-      .register(registrationRequestSchema)
-      .sendRequest()
-  }
-
-  def getAgent()(implicit token: String): Try[GetAgentResponse] = {
-    AgentClient
-      .getAgent()
-      .sendRequest()
-  }
+  def getAgent()(implicit token: String): Try[GetAgentResponse] = AgentClient(backend).getAgent()
 
   private def parseWaypointSymbol(waypointSymbol: String): Try[(String, String)] = {
     val pattern = """(\S+)-(\S+)-(\S+)""".r
@@ -41,29 +26,21 @@ class Service private (implicit backend: SttpBackend[Identity, Any]) {
   def getWaypoint(waypointSymbol: String)(implicit token: String): Try[GetWaypointResponse] = {
     parseWaypointSymbol(waypointSymbol)
       .fold(
-        error => {
-          Failure(error)
-        },
-        parsedWaypointSymbol => SystemClient
-          .getWaypoint(
-            systemSymbol = parsedWaypointSymbol._2,
-            waypointSymbol = waypointSymbol
-          )
-          .sendRequest()
+        error => Failure(error),
+        parsedWaypointSymbol => SystemClient(backend).getWaypoint(
+          systemSymbol = parsedWaypointSymbol._2,
+          waypointSymbol = waypointSymbol
+        )
       )
   }
 
-  def getAllContracts(limit: Int = 10, page: Int = 1)(implicit token: String): Try[GetAllContractResponse] = {
-    ContractClient
-      .getAllContracts(limit, page)
-      .sendRequest()
-  }
+  def getAllContracts(limit: Int = 10, page: Int = 1)
+                     (implicit token: String): Try[GetAllContractResponse] = ContractClient(backend)
+    .getAllContracts(limit, page)
 
-  def acceptContract(contractId: String)(implicit token: String): Try[AcceptContractResponse] = {
-    ContractClient
-      .acceptContract(contractId)
-      .sendRequest()
-  }
+  def acceptContract(contractId: String)
+                    (implicit token: String): Try[AcceptContractResponse] = ContractClient(backend)
+    .acceptContract(contractId)
 }
 
 object Service {
