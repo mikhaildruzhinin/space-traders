@@ -11,6 +11,6 @@ object RequestSchemas {
    * @param email Your email address. This is used if you reserved your call sign between resets.
    */
   case class RegistrationRequestSchema(symbol: String,
-                                       faction: FactionSymbol,
+                                       faction: FactionSymbol = FactionSymbol.COSMIC,
                                        email: Option[String] = None)
 }

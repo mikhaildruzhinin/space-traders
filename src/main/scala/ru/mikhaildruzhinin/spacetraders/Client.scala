@@ -38,7 +38,7 @@ object Client {
     def register(registrationRequestSchema: RegistrationRequestSchema): RequestT[Identity, Either[ResponseException[String, CirceError], RegistrationResponseSchema], Any] = {
 
       basicRequest
-        .post(uri"${baseUrl}/register")
+        .post(uri"$baseUrl/register")
         .headers(Map("Accept" -> "application/json", "Content-Type" -> "application/json"))
         .body(registrationRequestSchema)
         .response(asJson[RegistrationResponseSchema])
@@ -55,7 +55,7 @@ object Client {
     def getAgent()(implicit token: String): RequestT[Identity, Either[ResponseException[String, CirceError], GetAgentResponseSchema], Any] = {
 
       basicRequest
-        .get(uri"${baseUrl}/my/agent")
+        .get(uri"$baseUrl/my/agent")
         .headers(Map("Accept" -> "application/json", "Authorization" -> s"Bearer $token"))
         .response(asJson[GetAgentResponseSchema])
     }
@@ -80,6 +80,29 @@ object Client {
         .get(uri"$baseUrl/systems/$systemSymbol/waypoints/$waypointSymbol")
         .headers(Map("Accept" -> "application/json", "Authorization" -> s"Bearer $token"))
         .response(asJson[GetWaypointResponseSchema])
+    }
+  }
+
+  object ContractClient extends BaseClient {
+    /**
+     * Return a paginated list of all your contracts.
+     *
+     * @param limit How many entries to return per page
+     * @param page What entry offset to request
+     * @param token A private bearer token which grants authorization to use the API.
+     * @return A paginated list of all your contracts.
+     */
+    def getAllContracts(limit: Int, page: Int)(implicit token: String): RequestT[Identity, Either[ResponseException[String, CirceError], GetAllContractResponseSchema], Any] = {
+
+      val queryParams = Map(
+        "limit" -> limit,
+        "page" -> page
+      )
+
+      basicRequest
+        .get(uri"$baseUrl/my/contracts?$queryParams")
+        .headers(Map("Accept" -> "application/json", "Authorization" -> s"Bearer $token"))
+        .response(asJson[GetAllContractResponseSchema])
     }
   }
 }

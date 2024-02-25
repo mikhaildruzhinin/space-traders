@@ -2,7 +2,7 @@ package ru.mikhaildruzhinin.spacetraders
 
 import io.circe.{Error => CirceError}
 import ru.mikhaildruzhinin.spacetraders.Client._
-import ru.mikhaildruzhinin.spacetraders.Exceptions.WaypointSymbolParsingException
+import ru.mikhaildruzhinin.spacetraders.Exceptions._
 import ru.mikhaildruzhinin.spacetraders.RequestSchemas.RegistrationRequestSchema
 import sttp.client3._
 
@@ -51,6 +51,12 @@ class Service private (implicit backend: SttpBackend[Identity, Any]) {
           )(token)
           .sendRequest()
       )
+  }
+
+  def getAllContracts(limit: Int = 10, page: Int = 1, token: String): Try[ResponseSchemas.GetAllContractResponseSchema] = {
+    ContractClient
+      .getAllContracts(limit, page)(token)
+      .sendRequest()
   }
 }
 
