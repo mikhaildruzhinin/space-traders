@@ -2,8 +2,7 @@ package ru.mikhaildruzhinin.spacetraders
 
 import io.circe.{Error=>CirceError}
 import io.circe.generic.auto._
-import ru.mikhaildruzhinin.spacetraders.RequestSchemas._
-import ru.mikhaildruzhinin.spacetraders.ResponseSchemas._
+import ru.mikhaildruzhinin.spacetraders.Schemas._
 import sttp.client3._
 import sttp.client3.circe._
 
@@ -35,13 +34,13 @@ object Client {
      * @param registrationRequestSchema
      * @return
      */
-    def register(registrationRequestSchema: RegistrationRequestSchema): RequestT[Identity, Either[ResponseException[String, CirceError], RegistrationResponseSchema], Any] = {
+    def register(registrationRequestSchema: RegistrationRequest): RequestT[Identity, Either[ResponseException[String, CirceError], RegistrationResponse], Any] = {
 
       basicRequest
         .post(uri"$baseUrl/register")
         .headers(Map("Accept" -> "application/json", "Content-Type" -> "application/json"))
         .body(registrationRequestSchema)
-        .response(asJson[RegistrationResponseSchema])
+        .response(asJson[RegistrationResponse])
     }
   }
 
@@ -52,12 +51,12 @@ object Client {
      * @param token A private bearer token which grants authorization to use the API.
      * @return Agent details.
      */
-    def getAgent()(implicit token: String): RequestT[Identity, Either[ResponseException[String, CirceError], GetAgentResponseSchema], Any] = {
+    def getAgent()(implicit token: String): RequestT[Identity, Either[ResponseException[String, CirceError], GetAgentResponse], Any] = {
 
       basicRequest
         .get(uri"$baseUrl/my/agent")
         .headers(Map("Accept" -> "application/json", "Authorization" -> s"Bearer $token"))
-        .response(asJson[GetAgentResponseSchema])
+        .response(asJson[GetAgentResponse])
     }
   }
 
@@ -74,12 +73,12 @@ object Client {
      */
     def getWaypoint(systemSymbol: String,
                     waypointSymbol: String)
-                   (implicit token: String): RequestT[Identity, Either[ResponseException[String, CirceError], GetWaypointResponseSchema], Any] = {
+                   (implicit token: String): RequestT[Identity, Either[ResponseException[String, CirceError], GetWaypointResponse], Any] = {
 
       basicRequest
         .get(uri"$baseUrl/systems/$systemSymbol/waypoints/$waypointSymbol")
         .headers(Map("Accept" -> "application/json", "Authorization" -> s"Bearer $token"))
-        .response(asJson[GetWaypointResponseSchema])
+        .response(asJson[GetWaypointResponse])
     }
   }
 
@@ -93,7 +92,7 @@ object Client {
      * @return A paginated list of all your contracts.
      */
     def getAllContracts(limit: Int, page: Int)
-                       (implicit token: String): RequestT[Identity, Either[ResponseException[String, CirceError], GetAllContractResponseSchema], Any] = {
+                       (implicit token: String): RequestT[Identity, Either[ResponseException[String, CirceError], GetAllContractResponse], Any] = {
 
       val queryParams = Map(
         "limit" -> limit,
@@ -103,7 +102,7 @@ object Client {
       basicRequest
         .get(uri"$baseUrl/my/contracts?$queryParams")
         .headers(Map("Accept" -> "application/json", "Authorization" -> s"Bearer $token"))
-        .response(asJson[GetAllContractResponseSchema])
+        .response(asJson[GetAllContractResponse])
     }
 
     /**
@@ -117,12 +116,12 @@ object Client {
      * @return Successfully accepted contract.
      */
     def acceptContract(contractId: String)
-                      (implicit token: String): RequestT[Identity, Either[ResponseException[String, CirceError], AcceptContractResponseSchema], Any] = {
+                      (implicit token: String): RequestT[Identity, Either[ResponseException[String, CirceError], AcceptContractResponse], Any] = {
 
       basicRequest
         .post(uri"$baseUrl/my/contracts/$contractId/accept")
         .headers(Map("Accept" -> "application/json", "Authorization" -> s"Bearer $token"))
-        .response(asJson[AcceptContractResponseSchema])
+        .response(asJson[AcceptContractResponse])
     }
   }
 }

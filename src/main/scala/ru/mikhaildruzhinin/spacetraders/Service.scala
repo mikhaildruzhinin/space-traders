@@ -3,7 +3,7 @@ package ru.mikhaildruzhinin.spacetraders
 import io.circe.{Error => CirceError}
 import ru.mikhaildruzhinin.spacetraders.Client._
 import ru.mikhaildruzhinin.spacetraders.Exceptions._
-import ru.mikhaildruzhinin.spacetraders.RequestSchemas.RegistrationRequestSchema
+import ru.mikhaildruzhinin.spacetraders.Schemas._
 import sttp.client3._
 
 import scala.util.{Failure, Success, Try}
@@ -16,13 +16,13 @@ class Service private (implicit backend: SttpBackend[Identity, Any]) {
       .toTry
   }
 
-  def register(registrationRequestSchema: RegistrationRequestSchema): Try[ResponseSchemas.RegistrationResponseSchema] = {
+  def register(registrationRequestSchema: RegistrationRequest): Try[RegistrationResponse] = {
     DefaultClient
       .register(registrationRequestSchema)
       .sendRequest()
   }
 
-  def getAgent(token: String): Try[ResponseSchemas.GetAgentResponseSchema] = {
+  def getAgent(token: String): Try[GetAgentResponse] = {
     AgentClient
       .getAgent()(token)
       .sendRequest()
@@ -38,7 +38,7 @@ class Service private (implicit backend: SttpBackend[Identity, Any]) {
     }
   }
 
-  def getWaypoint(waypointSymbol: String, token: String): Try[ResponseSchemas.GetWaypointResponseSchema] = {
+  def getWaypoint(waypointSymbol: String, token: String): Try[GetWaypointResponse] = {
     parseWaypointSymbol(waypointSymbol)
       .fold(
         error => {
@@ -53,13 +53,13 @@ class Service private (implicit backend: SttpBackend[Identity, Any]) {
       )
   }
 
-  def getAllContracts(limit: Int = 10, page: Int = 1, token: String): Try[ResponseSchemas.GetAllContractResponseSchema] = {
+  def getAllContracts(limit: Int = 10, page: Int = 1, token: String): Try[GetAllContractResponse] = {
     ContractClient
       .getAllContracts(limit, page)(token)
       .sendRequest()
   }
 
-  def acceptContract(contractId: String, token: String): Try[ResponseSchemas.AcceptContractResponseSchema] = {
+  def acceptContract(contractId: String, token: String): Try[AcceptContractResponse] = {
     ContractClient
       .acceptContract(contractId)(token)
       .sendRequest()

@@ -2,11 +2,21 @@ package ru.mikhaildruzhinin.spacetraders
 
 import ru.mikhaildruzhinin.spacetraders.domain._
 
-object ResponseSchemas {
+object Schemas {
+  /**
+   * @param symbol  Your desired agent symbol. This will be a unique name used to represent your agent,
+   *                and will be the prefix for your ships.
+   * @param faction The symbol of the faction.
+   * @param email   Your email address. This is used if you reserved your call sign between resets.
+   */
+  case class RegistrationRequest(symbol: String,
+                                 faction: FactionSymbol = FactionSymbol.COSMIC,
+                                 email: Option[String] = None)
+
   /**
    * Successfully registered.
    */
-  case class RegistrationResponseSchema(data: RegistrationResponseData)
+  case class RegistrationResponse(data: RegistrationResponseData)
 
   /**
    * Successfully registered.
@@ -28,14 +38,14 @@ object ResponseSchemas {
    *
    * @param data Agent details.
    */
-  case class GetAgentResponseSchema(data: Agent)
+  case class GetAgentResponse(data: Agent)
 
   /**
    * Successfully fetched waypoint.
    *
    * @param data A waypoint is a location that ships can travel to such as a Planet, Moon or Space Station.
    */
-  case class GetWaypointResponseSchema(data: Waypoint)
+  case class GetWaypointResponse(data: Waypoint)
 
   /**
    * Succesfully listed contracts.
@@ -43,8 +53,8 @@ object ResponseSchemas {
    * @param data Contract details.
    * @param meta Meta details for pagination.
    */
-  case class GetAllContractResponseSchema(data: List[Contract],
-                                          meta: GetAllContractResponseMetadata)
+  case class GetAllContractResponse(data: List[Contract],
+                                    meta: GetAllContractResponseMetadata)
 
   /**
    * Meta details for pagination.
@@ -61,7 +71,7 @@ object ResponseSchemas {
   /**
    * Succesfully accepted contract.
    */
-  case class AcceptContractResponseSchema(data: AcceptContractResponseData)
+  case class AcceptContractResponse(data: AcceptContractResponseData)
 
   /**
    * Succesfully accepted contract.

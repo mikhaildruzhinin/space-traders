@@ -1,7 +1,7 @@
 package ru.mikhaildruzhinin.spacetraders
 
 import org.scalatest.funsuite.AnyFunSuite
-import ru.mikhaildruzhinin.spacetraders.RequestSchemas.RegistrationRequestSchema
+import ru.mikhaildruzhinin.spacetraders.Schemas.RegistrationRequest
 import sttp.client3._
 
 import java.time.LocalDateTime
@@ -11,7 +11,7 @@ import scala.util.Try
 class SpaceTradersTests extends AnyFunSuite {
   test("quickstart") {
     val callSign = s"test${DateTimeFormatter.ofPattern("HHmmss").format(LocalDateTime.now())}"
-    val registrationRequestSchema = RegistrationRequestSchema(callSign)
+    val registrationRequestSchema = RegistrationRequest(callSign)
     val backend: SttpBackend[Identity, Any] = HttpClientSyncBackend()
     val service = Service(backend)
 
