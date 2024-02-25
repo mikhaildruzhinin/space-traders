@@ -1,13 +1,14 @@
 package ru.mikhaildruzhinin.spacetraders
 
-import io.circe.{Error=>CirceError}
-import ru.mikhaildruzhinin.spacetraders.Client.{AgentClient, DefaultClient}
+import io.circe.{Error => CirceError}
+import ru.mikhaildruzhinin.spacetraders.Client._
+import ru.mikhaildruzhinin.spacetraders.Exceptions.WaypointSymbolParsingException
 import ru.mikhaildruzhinin.spacetraders.RequestSchemas.RegistrationRequestSchema
-import sttp.client3.{Identity, RequestT, ResponseException, SttpBackend}
+import sttp.client3._
 
-import scala.util.Try
+import scala.util.{Failure, Success, Try}
 
-object Service {
+class Service private (implicit backend: SttpBackend[Identity, Any]) {
   private implicit class Request[A](request: RequestT[Identity, Either[ResponseException[String, CirceError], A], Any]) {
     def sendRequest()(implicit backend: SttpBackend[Identity, Any]): Try[A] = request
       .send(backend)
@@ -15,17 +16,44 @@ object Service {
       .toTry
   }
 
-  def register(registrationRequestSchema: RegistrationRequestSchema)
-              (implicit backend: SttpBackend[Identity, Any]) = {
-
+  def register(registrationRequestSchema: RegistrationRequestSchema): Try[ResponseSchemas.RegistrationResponseSchema] = {
     DefaultClient
       .register(registrationRequestSchema)
       .sendRequest()
   }
 
-  def getAgent(token: String)(implicit backend: SttpBackend[Identity, Any]) = {
+  def getAgent(token: String): Try[ResponseSchemas.GetAgentResponseSchema] = {
     AgentClient
-      .getAgent(token)
+      .getAgent()(token)
       .sendRequest()
   }
+
+  private def parseWaypointSymbol(waypointSymbol: String): Try[(String, String)] = {
+    val pattern = """(\S+)-(\S+)-(\S+)""".r
+    waypointSymbol match {
+      case pattern(sector, system, _) => Success((sector, sector + "-" + system))
+      case _ => Failure(
+        new WaypointSymbolParsingException(s"Could not parse waypoint symbol: $waypointSymbol with pattern $pattern")
+      )
+    }
+  }
+
+  def getWaypoint(waypointSymbol: String, token: String): Try[ResponseSchemas.GetWaypointResponseSchema] = {
+    parseWaypointSymbol(waypointSymbol)
+      .fold(
+        error => {
+          Failure(error)
+        },
+        parsedWaypointSymbol => SystemClient
+          .getWaypoint(
+            systemSymbol = parsedWaypointSymbol._2,
+            waypointSymbol = waypointSymbol
+          )(token)
+          .sendRequest()
+      )
+  }
+}
+
+object Service {
+  def apply(backend: SttpBackend[Identity, Any]) = new Service()(backend)
 }

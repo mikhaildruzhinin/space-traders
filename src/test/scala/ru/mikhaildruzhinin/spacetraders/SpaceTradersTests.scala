@@ -10,15 +10,19 @@ import java.time.format.DateTimeFormatter
 import scala.util.Try
 
 class SpaceTradersTests extends AnyFunSuite {
-  test("register") {
+  test("quickstart") {
     val callSign = s"test${DateTimeFormatter.ofPattern("HHmmss").format(LocalDateTime.now())}"
     val registrationRequestSchema = RegistrationRequestSchema(callSign, FactionSymbol.COSMIC)
-    implicit val backend: SttpBackend[Identity, Any] = HttpClientSyncBackend()
+    val backend: SttpBackend[Identity, Any] = HttpClientSyncBackend()
+    val service = Service(backend)
 
     for {
-      token <- Service.register(registrationRequestSchema).map(_.data.token)
-      agent <- Service.getAgent(token).map(_.data)
-      _ <- Try(println(agent.headquarters))
+      token <- service.register(registrationRequestSchema).map(_.data.token)
+      agent <- service.getAgent(token).map(_.data)
+      currentLocation <- service.getWaypoint(agent.headquarters, token).map(_.data)
+      _ <- Try { println(currentLocation.symbol) }
+      _ <- Try { currentLocation.traits.foreach(println) }
+      _ <- Try { currentLocation.modifiers.foreach(println) }
     } yield ()
   }
 }

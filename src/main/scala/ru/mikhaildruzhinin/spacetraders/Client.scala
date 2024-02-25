@@ -50,14 +50,36 @@ object Client {
      * Fetch your agent's details.
      *
      * @param token A private bearer token which grants authorization to use the API.
-     * @return
+     * @return Agent details.
      */
-    def getAgent(implicit token: String): RequestT[Identity, Either[ResponseException[String, CirceError], GetAgentResponseSchema], Any] = {
+    def getAgent()(implicit token: String): RequestT[Identity, Either[ResponseException[String, CirceError], GetAgentResponseSchema], Any] = {
 
       basicRequest
         .get(uri"${baseUrl}/my/agent")
         .headers(Map("Accept" -> "application/json", "Authorization" -> s"Bearer $token"))
         .response(asJson[GetAgentResponseSchema])
+    }
+  }
+
+  object SystemClient extends BaseClient {
+    /**
+     * View the details of a waypoint.
+     *
+     * If the waypoint is uncharted, it will return the 'Uncharted' trait instead of its actual traits.
+     *
+     * @param systemSymbol The system symbol
+     * @param waypointSymbol The waypoint symbol
+     * @param token A private bearer token which grants authorization to use the API.
+     * @return The waypoint.
+     */
+    def getWaypoint(systemSymbol: String,
+                    waypointSymbol: String)
+                   (implicit token: String): RequestT[Identity, Either[ResponseException[String, CirceError], GetWaypointResponseSchema], Any] = {
+
+      basicRequest
+        .get(uri"$baseUrl/systems/$systemSymbol/waypoints/$waypointSymbol")
+        .headers(Map("Accept" -> "application/json", "Authorization" -> s"Bearer $token"))
+        .response(asJson[GetWaypointResponseSchema])
     }
   }
 }

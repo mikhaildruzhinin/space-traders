@@ -29,4 +29,11 @@ object ResponseSchemas {
    * @param data Agent details.
    */
   case class GetAgentResponseSchema(data: Agent)
+
+  /**
+   * Successfully fetched waypoint.
+   *
+   * @param data A waypoint is a location that ships can travel to such as a Planet, Moon or Space Station.
+   */
+  case class GetWaypointResponseSchema(data: Waypoint)
 }
