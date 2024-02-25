@@ -22,9 +22,9 @@ class Service private (implicit backend: SttpBackend[Identity, Any]) {
       .sendRequest()
   }
 
-  def getAgent(token: String): Try[GetAgentResponse] = {
+  def getAgent()(implicit token: String): Try[GetAgentResponse] = {
     AgentClient
-      .getAgent()(token)
+      .getAgent()
       .sendRequest()
   }
 
@@ -38,7 +38,7 @@ class Service private (implicit backend: SttpBackend[Identity, Any]) {
     }
   }
 
-  def getWaypoint(waypointSymbol: String, token: String): Try[GetWaypointResponse] = {
+  def getWaypoint(waypointSymbol: String)(implicit token: String): Try[GetWaypointResponse] = {
     parseWaypointSymbol(waypointSymbol)
       .fold(
         error => {
@@ -48,20 +48,20 @@ class Service private (implicit backend: SttpBackend[Identity, Any]) {
           .getWaypoint(
             systemSymbol = parsedWaypointSymbol._2,
             waypointSymbol = waypointSymbol
-          )(token)
+          )
           .sendRequest()
       )
   }
 
-  def getAllContracts(limit: Int = 10, page: Int = 1, token: String): Try[GetAllContractResponse] = {
+  def getAllContracts(limit: Int = 10, page: Int = 1)(implicit token: String): Try[GetAllContractResponse] = {
     ContractClient
-      .getAllContracts(limit, page)(token)
+      .getAllContracts(limit, page)
       .sendRequest()
   }
 
-  def acceptContract(contractId: String, token: String): Try[AcceptContractResponse] = {
+  def acceptContract(contractId: String)(implicit token: String): Try[AcceptContractResponse] = {
     ContractClient
-      .acceptContract(contractId)(token)
+      .acceptContract(contractId)
       .sendRequest()
   }
 }

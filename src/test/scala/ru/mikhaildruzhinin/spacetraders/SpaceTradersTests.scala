@@ -17,13 +17,13 @@ class SpaceTradersTests extends AnyFunSuite {
 
     val r = for {
       token <- service.register(registrationRequestSchema).map(_.data.token)
-      agent <- service.getAgent(token).map(_.data)
-      currentLocation <- service.getWaypoint(agent.headquarters, token).map(_.data)
+      agent <- service.getAgent()(token).map(_.data)
+      currentLocation <- service.getWaypoint(agent.headquarters)(token).map(_.data)
       _ <- Try { println(currentLocation.symbol) }
       contractId <- service
-        .getAllContracts(token = token)
+        .getAllContracts()(token)
         .flatMap(_.data.headOption.toRight(new NoSuchElementException).toTry.map(_.id))
-      _ <- Try { println(service.acceptContract(contractId, token)) }
+      _ <- Try { println(service.acceptContract(contractId)(token)) }
     } yield ()
 
     assert(r.isSuccess)
