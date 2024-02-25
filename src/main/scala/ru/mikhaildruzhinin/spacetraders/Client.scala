@@ -1,6 +1,6 @@
 package ru.mikhaildruzhinin.spacetraders
 
-import io.circe
+import io.circe.{Error=>CirceError}
 import io.circe.generic.auto._
 import ru.mikhaildruzhinin.spacetraders.RequestSchemas._
 import ru.mikhaildruzhinin.spacetraders.ResponseSchemas._
@@ -35,7 +35,7 @@ object Client {
      * @param registrationRequestSchema
      * @return
      */
-    def register(registrationRequestSchema: RegistrationRequestSchema): RequestT[Identity, Either[ResponseException[String, circe.Error], RegistrationResponseSchema], Any] = {
+    def register(registrationRequestSchema: RegistrationRequestSchema): RequestT[Identity, Either[ResponseException[String, CirceError], RegistrationResponseSchema], Any] = {
 
       basicRequest
         .post(uri"${baseUrl}/register")
@@ -52,7 +52,7 @@ object Client {
      * @param token A private bearer token which grants authorization to use the API.
      * @return
      */
-    def getAgent(implicit token: String) = {
+    def getAgent(implicit token: String): RequestT[Identity, Either[ResponseException[String, CirceError], GetAgentResponseSchema], Any] = {
 
       basicRequest
         .get(uri"${baseUrl}/my/agent")
