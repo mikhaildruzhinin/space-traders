@@ -24,7 +24,21 @@ case class Contract(id: String,
                     fulfilled: Boolean,
                     @deprecated("Deprecated in favor of deadlineToAccept")
                     expiration: Instant,
-                    deadlineToAccept: Instant)
+                    deadlineToAccept: Instant) {
+
+  def getDescription: String = {
+    new StringBuilder()
+      .append(s"Contract $id: ${`type`} of ")
+      .append(
+        terms
+          .deliver
+          .map(cargo => s"${cargo.unitsRequired} units of ${cargo.tradeSymbol} to ${cargo.destinationSymbol} ")
+          .mkString(", ")
+      )
+      .append(s"until ${terms.deadline}")
+      .toString()
+  }
+}
 
 /**
  * Type of contract.

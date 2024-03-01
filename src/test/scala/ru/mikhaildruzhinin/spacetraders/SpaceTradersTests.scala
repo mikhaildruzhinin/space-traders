@@ -29,25 +29,13 @@ class SpaceTradersTests extends AnyFunSuite with StrictLogging {
       agent <- service.getAgent()(token).map(_.data)
       currentLocation <- service.getWaypoint(agent.headquarters)(token).map(_.data)
       _ <- Try { logger.info(s"Current location: ${currentLocation.symbol}") }
-      contractId <- service
-        .getAllContracts()(token)
-        .flatMap(_.data.headOption.toRight(new NoSuchElementException).toTry.map(_.id))
+
+      contracts <- service.getAllContracts()(token).map(_.data)
+      _ <- Try { contracts.foreach(contract => logger.info(contract.getDescription)) }
+      contractId <- contracts.headOption.toRight(new NoSuchElementException).toTry.map(_.id)
       acceptedContract <- service.acceptContract(contractId)(token).map(_.data.contract)
-      contractTerms <- Try {
-        new StringBuilder()
-          .append(s"Accepted contract ${acceptedContract.id}\n${acceptedContract.`type`} of ")
-          .append(
-            acceptedContract
-              .terms
-              .deliver
-              .map(x => s"${x.unitsRequired} units of ${x.tradeSymbol} to ${x.destinationSymbol} ")
-              .mkString(", ")
-          )
-          .append(s"until ${acceptedContract.terms.deadline}")
-          .toString()
-      }
-      _ <- Try { logger.info(contractTerms) }
-    } yield acceptedContract
+      _ <- Try { logger.info(s"Accepted contract ${acceptedContract.id}") }
+    } yield ()
 
     assert(r.isSuccess)
   }
