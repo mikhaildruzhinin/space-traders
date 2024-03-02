@@ -4,6 +4,7 @@ import com.typesafe.scalalogging.StrictLogging
 import org.scalatest.funsuite.AnyFunSuite
 import ru.mikhaildruzhinin.spacetraders.Schemas.RegistrationRequest
 import ru.mikhaildruzhinin.spacetraders.client._
+import ru.mikhaildruzhinin.spacetraders.domain._
 import sttp.client3._
 
 import java.time.LocalDateTime
@@ -27,7 +28,8 @@ class SpaceTradersTests extends AnyFunSuite with StrictLogging {
     val r = for {
       token <- service.register(registrationRequestSchema).map(_.data.token)
       agent <- service.getAgent()(token).map(_.data)
-      currentLocation <- service.getWaypoint(agent.headquarters)(token).map(_.data)
+      (_, systemSymbol) <- Waypoint.parseSymbol(agent.headquarters)
+      currentLocation <- service.getWaypoint(systemSymbol, agent.headquarters)(token).map(_.data)
       _ <- Try { logger.info(s"Current location: ${currentLocation.symbol}") }
 
       contracts <- service.getAllContracts()(token).map(_.data)
@@ -35,6 +37,14 @@ class SpaceTradersTests extends AnyFunSuite with StrictLogging {
       contractId <- contracts.headOption.toRight(new NoSuchElementException).toTry.map(_.id)
       acceptedContract <- service.acceptContract(contractId)(token).map(_.data.contract)
       _ <- Try { logger.info(s"Accepted contract ${acceptedContract.id}") }
+
+      shipyards <- service.getAllWaypoints(
+          systemSymbol = systemSymbol,
+          waypointTraitSymbols = Some(Seq(WaypointTraitSymbol.SHIPYARD))
+        )(token).map(_.data)
+      _ <- Try { shipyards.foreach { shipyard =>
+        logger.info(Seq(shipyard.symbol, shipyard.x, shipyard.y).mkString(", "))
+      }}
     } yield ()
 
     assert(r.isSuccess)

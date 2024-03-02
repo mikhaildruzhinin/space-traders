@@ -54,7 +54,7 @@ object Schemas {
    * @param meta Meta details for pagination.
    */
   case class GetAllContractResponse(data: List[Contract],
-                                    meta: GetAllContractResponseMetadata)
+                                    meta: PaginationMeta)
 
   /**
    * Meta details for pagination.
@@ -64,9 +64,9 @@ object Schemas {
    *             Each page holds an amount of items equal to the limit.
    * @param limit The amount of items in each page. Limits how many items can be fetched at once.
    */
-  case class GetAllContractResponseMetadata(total: Int,
-                                            page: Int,
-                                            limit: Int)
+  case class PaginationMeta(total: Int,
+                            page: Int,
+                            limit: Int)
 
   /**
    * Succesfully accepted contract.
@@ -81,4 +81,13 @@ object Schemas {
    */
   case class AcceptContractResponseData(agent: Agent,
                                         contract: Contract)
+
+  /**
+   * Successfully fetched all waypoints in the system.
+   *
+   * @param data A waypoint is a location that ships can travel to such as a Planet, Moon or Space Station.
+   * @param meta Meta details for pagination.
+   */
+  case class GetAllWaypointsResponse(data: List[Waypoint],
+                                     meta: PaginationMeta)
 }

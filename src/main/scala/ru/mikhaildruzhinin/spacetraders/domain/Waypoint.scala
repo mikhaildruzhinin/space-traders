@@ -1,6 +1,9 @@
 package ru.mikhaildruzhinin.spacetraders.domain
 
 import enumeratum._
+import ru.mikhaildruzhinin.spacetraders.Exceptions.WaypointSymbolParsingException
+
+import scala.util.{Failure, Success, Try}
 
 /**
  * A waypoint is a location that ships can travel to such as a Planet, Moon or Space Station.
@@ -31,6 +34,24 @@ case class Waypoint(symbol: String,
                     modifiers: Option[List[WaypointModifier]],
                     chart: Option[Chart],
                     isUnderConstruction: Boolean)
+
+object Waypoint {
+  /**
+   * Parse waypoint symbol to extract sector symbol and system symbol
+   *
+   * @param symbol Waypoint symbol
+   * @return A Try of tuple of sector symbol and system symbol
+   */
+  def parseSymbol(symbol: String): Try[(String, String)] = {
+    val pattern = """(\S+)-(\S+)-(\S+)""".r
+    symbol match {
+      case pattern(sector, system, _) => Success((sector, sector + "-" + system))
+      case _ => Failure(
+        new WaypointSymbolParsingException(s"Could not parse waypoint symbol: $symbol with pattern $pattern")
+      )
+    }
+  }
+}
 
 /**
  * The type of waypoint.
@@ -67,6 +88,7 @@ case object WaypointType extends Enum[WaypointType] with CirceEnum[WaypointType]
 
   case object FUEL_STATION extends WaypointType
 
+  //noinspection TypeAnnotation
   val values = findValues
 }
 
@@ -240,6 +262,7 @@ object WaypointTraitSymbol extends Enum [WaypointTraitSymbol] with CirceEnum[Way
 
   case object STRIPPED extends WaypointTraitSymbol
 
+  //noinspection TypeAnnotation
   val values = findValues
 }
 
@@ -271,5 +294,6 @@ object WaypointModifierSymbol extends Enum[WaypointModifierSymbol] with CirceEnu
 
   case object CIVIL_UNREST extends WaypointModifierSymbol
 
+  //noinspection TypeAnnotation
   val values = findValues
 }
