@@ -26,7 +26,7 @@ class ContractClient (implicit backend: SttpBackend[Identity, Any]) extends Base
 
     basicRequest
       .get(uri"$baseUrl/my/contracts?$queryParams")
-      .headers(Map("Accept" -> "application/json", "Authorization" -> s"Bearer $token"))
+      .headers(getDefaultHeaders(token))
       .response(asJson[GetAllContractResponse])
       .sendRequest()
   }
@@ -43,8 +43,8 @@ class ContractClient (implicit backend: SttpBackend[Identity, Any]) extends Base
    */
   def acceptContract(contractId: String)
                     (implicit token: String): Try[AcceptContractResponse] = basicRequest
-      .post(uri"$baseUrl/my/contracts/$contractId/accept")
-      .headers(Map("Accept" -> "application/json", "Authorization" -> s"Bearer $token"))
-      .response(asJson[AcceptContractResponse])
-      .sendRequest()
+    .post(uri"$baseUrl/my/contracts/$contractId/accept")
+    .headers(getDefaultHeaders(token))
+    .response(asJson[AcceptContractResponse])
+    .sendRequest()
 }

@@ -22,10 +22,10 @@ class SystemClient (implicit backend: SttpBackend[Identity, Any]) extends BaseCl
   def getWaypoint(systemSymbol: String,
                   waypointSymbol: String)
                  (implicit token: String): Try[GetWaypointResponse] = basicRequest
-      .get(uri"$baseUrl/systems/$systemSymbol/waypoints/$waypointSymbol")
-      .headers(Map("Accept" -> "application/json", "Authorization" -> s"Bearer $token"))
-      .response(asJson[GetWaypointResponse])
-      .sendRequest()
+    .get(uri"$baseUrl/systems/$systemSymbol/waypoints/$waypointSymbol")
+    .headers(getDefaultHeaders(token))
+    .response(asJson[GetWaypointResponse])
+    .sendRequest()
 
   /**
    * Return a paginated list of all of the waypoints for a given system.
@@ -58,7 +58,7 @@ class SystemClient (implicit backend: SttpBackend[Identity, Any]) extends BaseCl
 
     basicRequest
       .get(uri"$baseUrl/systems/$systemSymbol/waypoints?$queryParams&traits=$waypointTraitParams")
-      .headers(Map("Accept" -> "application/json", "Authorization" -> s"Bearer $token"))
+      .headers(getDefaultHeaders(token))
       .response(asJson[GetAllWaypointsResponse])
       .sendRequest()
   }

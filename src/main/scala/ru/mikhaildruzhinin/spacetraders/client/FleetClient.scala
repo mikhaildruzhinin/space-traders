@@ -16,7 +16,7 @@ class FleetClient (implicit backend: SttpBackend[Identity, Any]) extends BaseCli
    */
   def getAllShips()(implicit token: String): Try[GetAllShipsResponse] = basicRequest
     .get(uri"$baseUrl/my/ships")
-    .headers(Map("Accept" -> "application/json", "Authorization" -> s"Bearer $token"))
+    .headers(getDefaultHeaders(token))
     .response(asJson[GetAllShipsResponse])
     .sendRequest()
 }

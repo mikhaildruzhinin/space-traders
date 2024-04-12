@@ -1,7 +1,9 @@
 package ru.mikhaildruzhinin.spacetraders.client
 
+import io.circe.generic.auto._
 import io.circe.{Error => CirceError}
 import sttp.client3._
+import sttp.client3.circe._
 
 import scala.util.Try
 
@@ -14,4 +16,8 @@ trait BaseClient {
   }
 
   protected val baseUrl: String = "https://api.spacetraders.io/v2/"
+
+  protected def getDefaultHeaders(token: String): Map[String, String] = {
+    Map("Accept" -> "application/json", "Authorization" -> s"Bearer $token")
+  }
 }

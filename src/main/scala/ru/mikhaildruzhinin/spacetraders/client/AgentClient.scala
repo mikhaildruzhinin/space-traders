@@ -16,7 +16,7 @@ class AgentClient (implicit backend: SttpBackend[Identity, Any]) extends BaseCli
    */
   def getAgent()(implicit token: String): Try[GetAgentResponse] = basicRequest
       .get(uri"$baseUrl/my/agent")
-      .headers(Map("Accept" -> "application/json", "Authorization" -> s"Bearer $token"))
+      .headers(getDefaultHeaders(token))
       .response(asJson[GetAgentResponse])
       .sendRequest()
 }
