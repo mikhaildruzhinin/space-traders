@@ -9,7 +9,8 @@ import scala.util.{Failure, Try}
 class Service (defaultClient: DefaultClient,
                agentClient: AgentClient,
                systemClient: SystemClient,
-               contractClient: ContractClient) {
+               contractClient: ContractClient,
+               fleetClient: FleetClient) {
 
   def register(registrationRequest: RegistrationRequest): Try[RegistrationResponse] = defaultClient
     .register(registrationRequest)
@@ -49,4 +50,6 @@ class Service (defaultClient: DefaultClient,
     waypointTraitSymbols,
     waypointType
   )
+
+  def getAllShips()(implicit token: String): Try[GetAllShipsResponse] = fleetClient.getAllShips()
 }

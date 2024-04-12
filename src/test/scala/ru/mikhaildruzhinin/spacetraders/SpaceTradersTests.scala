@@ -9,9 +9,13 @@ import sttp.client3._
 
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
-import scala.util.Try
+import scala.util.{Failure, Try}
 
 class SpaceTradersTests extends AnyFunSuite with StrictLogging {
+  implicit class ConvertibleOption[A](option: Option[A]) {
+    def toTry(errorMessage: String): Try[A] = option.toRight(new RuntimeException(errorMessage)).toTry
+  }
+
   test("quickstart") {
     import com.softwaremill.macwire._
 
@@ -23,6 +27,7 @@ class SpaceTradersTests extends AnyFunSuite with StrictLogging {
     lazy val agentClient = wire[AgentClient]
     lazy val systemClient = wire[SystemClient]
     lazy val contractClient = wire[ContractClient]
+    lazy val fleetClient = wire[FleetClient]
     lazy val service: Service = wire[Service]
 
     val r = for {
@@ -34,19 +39,23 @@ class SpaceTradersTests extends AnyFunSuite with StrictLogging {
 
       contracts <- service.getAllContracts()(token).map(_.data)
       _ <- Try { contracts.foreach(contract => logger.info(contract.getDescription)) }
-      contractId <- contracts.headOption.toRight(new NoSuchElementException).toTry.map(_.id)
+      contractId <- contracts.headOption.toTry("test").map(_.id)
       acceptedContract <- service.acceptContract(contractId)(token).map(_.data.contract)
       _ <- Try { logger.info(s"Accepted contract ${acceptedContract.id}") }
 
+      ships <- service.getAllShips()(token).map(_.data)
+      satellite <- ships.find(_.registration.role == ShipRole.SATELLITE).toTry("test")
       shipyards <- service.getAllWaypoints(
           systemSymbol = systemSymbol,
           waypointTraitSymbols = Some(Seq(WaypointTraitSymbol.SHIPYARD))
         )(token).map(_.data)
-      _ <- Try { shipyards.foreach { shipyard =>
-        logger.info(Seq(shipyard.symbol, shipyard.x, shipyard.y).mkString(", "))
-      }}
+      s <- shipyards.find(_.symbol == satellite.nav.waypointSymbol).toTry("test")
+      _ <- Try { logger.info(Seq(s.symbol, s.x, s.y).mkString(", ")) }
     } yield ()
 
-    assert(r.isSuccess)
+    assert(
+      r.recoverWith { case exception => logger.error(exception.getMessage); Failure(exception) }
+        .isSuccess
+    )
   }
 }

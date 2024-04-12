@@ -90,4 +90,13 @@ object Schemas {
    */
   case class GetAllWaypointsResponse(data: List[Waypoint],
                                      meta: PaginationMeta)
+
+  /**
+   * Successfully listed ships.
+   *
+   * @param data Ship details.
+   * @param meta Meta details for pagination.
+   */
+  case class GetAllShipsResponse(data: List[Ship],
+                                 meta: PaginationMeta)
 }
