@@ -23,6 +23,7 @@ package object domain {
 
     case object RESTRICTED extends ActivityLevel
 
+    //noinspection TypeAnnotation
     val values = findValues
   }
 

@@ -83,6 +83,7 @@ case object ShipRole extends Enum[ShipRole] with CirceEnum[ShipRole] {
 
   case object REFINERY extends ShipRole
 
+  //noinspection TypeAnnotation
   val values = findValues
 }
 
@@ -144,6 +145,7 @@ case object ShipNavFlightMode extends Enum[ShipNavFlightMode] with CirceEnum[Shi
 
   case object BURN extends ShipNavFlightMode
 
+  //noinspection TypeAnnotation
   val values = findValues
 }
 
@@ -180,6 +182,7 @@ case object ShipCrewRotation extends Enum[ShipCrewRotation] with CirceEnum[ShipC
 
   case object RELAXED extends ShipCrewRotation
 
+  //noinspection TypeAnnotation
   val values = findValues
 }
 
@@ -248,6 +251,7 @@ case object ShipFrameSymbol extends Enum[ShipFrameSymbol] with CirceEnum[ShipFra
 
   case object FRAME_CARRIER extends ShipFrameSymbol
 
+  //noinspection TypeAnnotation
   val values = findValues
 }
 
@@ -297,6 +301,7 @@ case object ShipReactorSymbol extends Enum[ShipReactorSymbol] with CirceEnum[Shi
 
   case object REACTOR_ANTIMATTER_I extends ShipReactorSymbol
 
+  //noinspection TypeAnnotation
   val values = findValues
 }
 
@@ -333,6 +338,7 @@ case object ShipEngineSymbol extends Enum[ShipEngineSymbol] with CirceEnum[ShipE
 
   case object ENGINE_HYPER_DRIVE_I extends ShipEngineSymbol
 
+  //noinspection TypeAnnotation
   val values = findValues
 }
 
@@ -416,6 +422,7 @@ case object ShipModuleSymbol extends Enum[ShipModuleSymbol] with CirceEnum[ShipM
 
   case object MODULE_SHIELD_GENERATOR_II extends ShipModuleSymbol
 
+  //noinspection TypeAnnotation
   val values = findValues
 }
 
@@ -473,6 +480,7 @@ case object ShipMountSymbol extends Enum[ShipMountSymbol] with CirceEnum[ShipMou
 
   case object MOUNT_TURRET_I extends ShipMountSymbol
 
+  //noinspection TypeAnnotation
   val values = findValues
 }
 
@@ -511,6 +519,7 @@ case object ShipMountDeposit extends Enum[ShipMountDeposit] with CirceEnum[ShipM
 
   case object MERITIUM_ORE extends ShipMountDeposit
 
+  //noinspection TypeAnnotation
   val values = findValues
 }
 
@@ -831,6 +840,7 @@ case object ShipCargoItemSymbol extends Enum[ShipCargoItemSymbol] with CirceEnum
 
   case object SHIP_SURVEYOR extends ShipCargoItemSymbol
 
+  //noinspection TypeAnnotation
   val values = findValues
 }
 

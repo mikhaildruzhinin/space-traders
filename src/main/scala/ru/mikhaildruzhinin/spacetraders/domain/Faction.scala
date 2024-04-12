@@ -64,6 +64,7 @@ case object FactionSymbol extends Enum[FactionSymbol] with CirceEnum[FactionSymb
 
   case object ETHEREAL extends FactionSymbol
 
+  //noinspection TypeAnnotation
   val values = findValues
 }
 
@@ -201,5 +202,6 @@ case object FactionTraitSymbol extends Enum[FactionTraitSymbol] with CirceEnum[F
 
   case object ENTREPRENEURIAL extends FactionTraitSymbol
 
+  //noinspection TypeAnnotation
   val values = findValues
 }

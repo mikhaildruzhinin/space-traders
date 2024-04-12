@@ -53,6 +53,7 @@ case object ContractType extends Enum[ContractType] with CirceEnum[ContractType]
 
   case object SHUTTLE extends ContractType
 
+  //noinspection TypeAnnotation
   val values = findValues
 }
 
