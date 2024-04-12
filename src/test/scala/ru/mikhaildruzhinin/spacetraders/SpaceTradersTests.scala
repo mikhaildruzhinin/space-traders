@@ -39,17 +39,17 @@ class SpaceTradersTests extends AnyFunSuite with StrictLogging {
 
       contracts <- service.getAllContracts()(token).map(_.data)
       _ <- Try { contracts.foreach(contract => logger.info(contract.getDescription)) }
-      contractId <- contracts.headOption.toTry("test").map(_.id)
+      contractId <- contracts.headOption.toTry("No contracts available").map(_.id)
       acceptedContract <- service.acceptContract(contractId)(token).map(_.data.contract)
       _ <- Try { logger.info(s"Accepted contract ${acceptedContract.id}") }
 
       ships <- service.getAllShips()(token).map(_.data)
-      satellite <- ships.find(_.registration.role == ShipRole.SATELLITE).toTry("test")
+      satellite <- ships.find(_.registration.role == ShipRole.SATELLITE).toTry("No satellite available")
       shipyards <- service.getAllWaypoints(
           systemSymbol = systemSymbol,
           waypointTraitSymbols = Some(Seq(WaypointTraitSymbol.SHIPYARD))
         )(token).map(_.data)
-      s <- shipyards.find(_.symbol == satellite.nav.waypointSymbol).toTry("test")
+      s <- shipyards.find(_.symbol == satellite.nav.waypointSymbol).toTry("No shipyard available")
       _ <- Try { logger.info(Seq(s.symbol, s.x, s.y).mkString(", ")) }
     } yield ()
 
