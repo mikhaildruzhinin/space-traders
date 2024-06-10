@@ -33,7 +33,10 @@ case class Waypoint(symbol: String,
                     traits: List[WaypointTrait],
                     modifiers: Option[List[WaypointModifier]],
                     chart: Option[Chart],
-                    isUnderConstruction: Boolean)
+                    isUnderConstruction: Boolean) {
+
+  def getLocation: String = s"$symbol($x, $y)"
+}
 
 object Waypoint {
   /**

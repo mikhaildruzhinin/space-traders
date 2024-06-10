@@ -35,7 +35,7 @@ class SpaceTradersTests extends AnyFunSuite with StrictLogging {
       agent <- service.getAgent()(token).map(_.data)
       (_, systemSymbol) <- Waypoint.parseSymbol(agent.headquarters)
       currentLocation <- service.getWaypoint(systemSymbol, agent.headquarters)(token).map(_.data)
-      _ <- Try { logger.info(s"Current location: ${currentLocation.symbol}") }
+      _ = logger.info(s"Current location: ${currentLocation.getLocation}")
 
       contracts <- service.getAllContracts()(token).map(_.data)
       _ <- Try { contracts.foreach(contract => logger.info(contract.getDescription)) }
@@ -50,7 +50,7 @@ class SpaceTradersTests extends AnyFunSuite with StrictLogging {
           waypointTraitSymbols = Some(Seq(WaypointTraitSymbol.SHIPYARD))
         )(token).map(_.data)
       s <- shipyards.find(_.symbol == satellite.nav.waypointSymbol).toTry("No shipyard available")
-      _ <- Try { logger.info(Seq(s.symbol, s.x, s.y).mkString(", ")) }
+      _ = logger.info(s"Purchasing ship at location: ${s.getLocation})")
     } yield ()
 
     assert(
