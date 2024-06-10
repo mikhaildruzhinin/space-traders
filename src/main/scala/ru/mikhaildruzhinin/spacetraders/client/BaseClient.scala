@@ -1,9 +1,7 @@
 package ru.mikhaildruzhinin.spacetraders.client
 
-import io.circe.generic.auto._
 import io.circe.{Error => CirceError}
 import sttp.client3._
-import sttp.client3.circe._
 
 import scala.util.Try
 
