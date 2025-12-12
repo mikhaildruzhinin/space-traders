@@ -1,4 +1,4 @@
-package ru.mikhaildruzhinin;
+package ru.mikhaildruzhinin.spacetraders;
 
 import io.smallrye.mutiny.Uni;
 import jakarta.inject.Inject;
@@ -20,7 +20,7 @@ public class IndexResource {
     @GET
     @Path("/")
     @Produces(MediaType.APPLICATION_JSON)
-    public Uni<GetStatus200Response> hello() {
+    public Uni<GetStatus200Response> index() {
         return globalApi.getStatus();
     }
 }
