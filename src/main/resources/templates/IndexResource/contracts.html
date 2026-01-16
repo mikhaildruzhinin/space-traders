@@ -1,0 +1,43 @@
+{@java.util.List<ru.mikhaildruzhinin.spacetraders.generated.client.model.Contract> contracts}
+
+<table>
+    <thead>
+        <tr>
+            <td rowspan="2">Id</td>
+            <td rowspan="2">Faction</td>
+            <td rowspan="2">Type</td>
+            <td rowspan="2">Deadline</td>
+            <td colspan="2">Payment</td>
+            <td rowspan="2">Deliver</td>
+            <td rowspan="2">Accepted</td>
+            <td rowspan="2">Fulfilled</td>
+            <td rowspan="2">Expiration</td>
+            <td rowspan="2">Deadline to accept</td>
+        </tr>
+        <tr>
+            <td>On accepted</td>
+            <td>On fulfilled</td>
+        </tr>
+    </thead>
+    <tbody>
+        {#for contract in contracts}
+            <tr>
+                <td>{contract.getId()}</td>
+                <td>{contract.getFactionSymbol()}</td>
+                <td>{contract.getType()}</td>
+                <td>{contract.getTerms().getDeadline()}</td>
+                <td>{contract.getTerms().getPayment().getOnAccepted()}</td>
+                <td>{contract.getTerms().getPayment().getOnFulfilled()}</td>
+                <td>
+                    {#for good in contract.getTerms().getDeliver()}
+                        {good.getUnitsRequired()} of {good.getTradeSymbol()} to {good.getDestinationSymbol}<br>
+                    {/for}
+                </td>
+                <td>{contract.getAccepted()}</td>
+                <td>{contract.getFulfilled()}</td>
+                <td>{contract.getExpiration()}</td>
+                <td>{contract.getDeadlineToAccept()}</td>
+            </tr>
+        {/for}
+    </tbody>
+</table>

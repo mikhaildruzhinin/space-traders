@@ -1,0 +1,11 @@
+{#include base.html}
+    <header>
+        <p>{status}</p>
+    </header>
+    <main>
+        <p hx-get="/agent" hx-trigger="load">Loading agent...</p>
+
+        <p hx-get="/contracts" hx-trigger="load">Loading contracts...</p>
+    </main>
+    <footer></footer>
+{/include}
