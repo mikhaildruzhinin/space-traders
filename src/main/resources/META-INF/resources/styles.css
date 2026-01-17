@@ -8,3 +8,11 @@ th, td {
 th {
     background: #f0f0f0;
 }
+caption {
+    caption-side: top;
+    text-align: center;
+    font-weight: bold;
+    font-size: 1.1em;
+    margin-bottom: 8px;
+}
+
