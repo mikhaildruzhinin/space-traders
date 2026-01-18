@@ -1,0 +1,50 @@
+{@ ru.mikhaildruzhinin.spacetraders.generated.client.model.Waypoint waypoint}
+
+<table>
+    <caption>Starting location</caption>
+    <thead>
+        <tr>
+            <td>Symbol</td>
+            <td>Type</td>
+            <td>System</td>
+            <td>Coordinates</td>
+            <td>Orbits</td>
+            <td>Orbitals</td>
+            <td>Faction</td>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td>{waypoint.getSymbol()}</td>
+            <td>{waypoint.getType()}</td>
+            <td>{waypoint.getSystemSymbol()}</td>
+            <td>{waypoint.getX()}, {waypoint.getY()}</td>
+            <td>{waypoint.getOrbits()}</td>
+            <td>
+                {#for orbital in waypoint.getOrbitals()}
+                    {orbital.getSymbol()}<br>
+                {/for}
+            </td>
+            <td>{waypoint.getFaction().getSymbol()}</td>
+        </tr>
+    </tbody>
+</table>
+
+<br>
+
+<table>
+    <thead>
+        <tr>
+            <td>Trait</td>
+            <td>Description</td>
+        </tr>
+    </thead>
+    <tbody>
+        {#for trait in waypoint.getTraits()}
+            <tr>
+                <td>{trait.getName()}</td>
+                <td>{trait.getDescription()}</td>
+            </tr>
+        {/for}
+    </tbody>
+</table>

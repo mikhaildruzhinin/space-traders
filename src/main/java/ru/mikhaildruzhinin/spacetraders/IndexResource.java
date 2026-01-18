@@ -28,6 +28,10 @@ public class IndexResource {
 
     @RestClient
     @Inject
+    SystemsApi systemsApi;
+
+    @RestClient
+    @Inject
     ContractsApi contractsApi;
 
     @CheckedTemplate
@@ -35,6 +39,8 @@ public class IndexResource {
         public static native TemplateInstance index(String status);
 
         public static native TemplateInstance agent(Agent agent);
+
+        public static native TemplateInstance waypoint(Waypoint waypoint);
 
         public static native TemplateInstance contracts(List<Contract> contracts);
     }
@@ -52,11 +58,30 @@ public class IndexResource {
     @GET
     @Path("/agent")
     @Produces(MediaType.TEXT_HTML)
-    @CacheResult(cacheName = "agent")
     public Uni<TemplateInstance> agent() {
-        return agentsApi.getMyAgent()
+        return getMyAgent()
             .map(GetMyAgent200Response::getData)
             .map(Templates::agent);
+    }
+
+    @GET
+    @Path("/starting-location")
+    @Produces(MediaType.TEXT_HTML)
+    @CacheResult(cacheName = "statring-location")
+    public Uni<TemplateInstance> startingLocation() {
+
+        return getMyAgent()
+            .map(GetMyAgent200Response::getData)
+            .map(Agent::getHeadquarters)
+            .map(WaypointSymbol::from)
+            .flatMap(waypoint -> systemsApi.getWaypoint(waypoint.system(), waypoint.waypoint()))
+            .map(GetWaypoint200Response::getData)
+            .map(Templates::waypoint);
+    }
+
+    @CacheResult(cacheName = "my-agent")
+    protected Uni<GetMyAgent200Response> getMyAgent() {
+        return agentsApi.getMyAgent();
     }
 
     @GET
@@ -65,6 +90,7 @@ public class IndexResource {
     @CacheResult(cacheName = "contracts")
     public Uni<TemplateInstance> contracts() {
         // TODO: persist contract
+        // TODO: add pagination
         return contractsApi.getContracts(1, 20)
             .map(GetContracts200Response::getData)
             .map(Templates::contracts);
