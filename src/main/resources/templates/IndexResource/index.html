@@ -3,11 +3,11 @@
         <p>{status}</p>
     </header>
     <main>
-        <p hx-get="/agent" hx-trigger="load">Loading agent...</p>
+        <div class="mb-2" hx-get="/agent" hx-trigger="load">Loading agent...</div>
 
-        <p hx-get="/starting-location" hx-trigger="load">Loading starting location...</p>
+        <div class="mb-2" hx-get="/starting-location" hx-trigger="load">Loading starting location...</div>
 
-        <p hx-get="/contracts" hx-trigger="load">Loading contracts...</p>
+        <div class="mb-2" hx-get="/contracts" hx-trigger="load">Loading contracts...</div>
     </main>
     <footer></footer>
 {/include}
