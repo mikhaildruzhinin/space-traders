@@ -67,7 +67,7 @@ public class IndexResource {
     @GET
     @Path("/starting-location")
     @Produces(MediaType.TEXT_HTML)
-    @CacheResult(cacheName = "statring-location")
+    @CacheResult(cacheName = "starting-location")
     public Uni<TemplateInstance> startingLocation() {
 
         return getMyAgent()
