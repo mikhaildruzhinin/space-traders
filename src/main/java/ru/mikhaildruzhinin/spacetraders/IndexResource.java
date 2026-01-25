@@ -78,9 +78,11 @@ public class IndexResource {
 
         return getMyAgent()
             .map(GetMyAgent200Response::getData)
-            .map(Agent::getHeadquarters)
-            .map(WaypointSymbol::from)
-            .flatMap(waypoint -> systemsApi.getWaypoint(waypoint.system(), waypoint.waypoint()))
+            .map(agent -> WaypointSymbol.from(agent.getHeadquarters()))
+            .flatMap(waypoint -> systemsApi.getWaypoint(
+                waypoint.system(),
+                waypoint.waypoint())
+            )
             .map(GetWaypoint200Response::getData)
             .map(Templates::waypoint);
     }
