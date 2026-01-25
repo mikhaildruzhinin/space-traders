@@ -36,7 +36,7 @@ public class IndexResource {
 
     @CheckedTemplate
     public static class Templates {
-        public static native TemplateInstance index(String status);
+        public static native TemplateInstance index();
 
         public static native TemplateInstance agent(Agent agent);
 
@@ -49,10 +49,16 @@ public class IndexResource {
     @Path("/")
     @Produces(MediaType.TEXT_HTML)
     public Uni<TemplateInstance> index() {
-        // TODO: cache API response
+        return Uni.createFrom().item(Templates.index());
+    }
+
+    @GET
+    @Path("/status")
+    @Produces(MediaType.TEXT_PLAIN)
+    @CacheResult(cacheName = "status")
+    public Uni<String> status() {
         return globalApi.getStatus()
-            .map(GetStatus200Response::getStatus)
-            .map(Templates::index);
+            .map(GetStatus200Response::getStatus);
     }
 
     @GET

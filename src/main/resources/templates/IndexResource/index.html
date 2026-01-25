@@ -1,6 +1,6 @@
 {#include base.html}
     <header>
-        <p>{status}</p>
+        <p class="mb-2" hx-get="/status" hx-trigger="load">Loading status...</p>
     </header>
     <main>
         <div class="mb-2" hx-get="/agent" hx-trigger="load">Loading agent...</div>
