@@ -108,7 +108,7 @@ public class IndexResource {
         return fetchMyAgent().map(Agent::getStartingFaction)
             .flatMap(this::findDockedShipWithinFaction)
             .flatMap(ship -> getNegotiateContract201ResponseUni(ship).replaceWithVoid())
-            .onFailure(ClientWebApplicationException.class).recoverWithItem((Void) null)
+            .onFailure(ClientWebApplicationException.class).recoverWithItem((Void) null) // TODO: log exception
             .flatMap(ignored -> fetchContracts())
             .map(Templates::contracts);
     }
@@ -159,7 +159,7 @@ public class IndexResource {
     public Uni<TemplateInstance> accept(@FormParam("contract_id") String contractId) {
         return acceptContract(contractId)
             .replaceWithVoid()
-            .onFailure(ClientWebApplicationException.class).recoverWithItem((Void) null)
+            .onFailure(ClientWebApplicationException.class).recoverWithItem((Void) null) // TODO: log exception
             .flatMap(ignored -> fetchContracts())
             .map(Templates::contracts);
     }
