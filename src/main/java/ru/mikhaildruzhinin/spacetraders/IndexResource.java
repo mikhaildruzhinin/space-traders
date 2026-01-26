@@ -6,7 +6,6 @@ import io.quarkus.qute.CheckedTemplate;
 import io.quarkus.qute.TemplateInstance;
 import io.smallrye.mutiny.Multi;
 import io.smallrye.mutiny.Uni;
-import io.smallrye.mutiny.tuples.Tuple2;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
@@ -134,8 +133,8 @@ public class IndexResource {
             .onItem().transformToMulti(Multi.createFrom()::iterable)
             .filter(this::checkIfDocked)
             .onItem().transformToUniAndMerge(this::attachWaypointFaction)
-            .filter(sf -> sf.getItem2() == factionSymbol)
-            .map(Tuple2::getItem1)
+            .filter(sf -> sf.factionSymbol() == factionSymbol)
+            .map(ShipWithFactionSymbol::ship)
             .select().first().toUni()
             .onItem().ifNull().failWith(() -> new RuntimeException("No docked ships within faction " + faction)); // TODO: add custom exception
     }
@@ -144,15 +143,14 @@ public class IndexResource {
         return s.getNav().getStatus() == ShipNavStatus.DOCKED;
     }
 
-    // TODO: create a dedicated record
-    private Uni<Tuple2<Ship, FactionSymbol>> attachWaypointFaction(Ship s) {
+    private Uni<ShipWithFactionSymbol> attachWaypointFaction(Ship s) {
         ShipNav shipNav = s.getNav();
         String systemSymbol = shipNav.getSystemSymbol();
         String waypointSymbol = shipNav.getWaypointSymbol();
 
         return systemsApi.getWaypoint(systemSymbol, waypointSymbol)
             .map(response -> response.getData().getFaction().getSymbol())
-            .map(f -> Tuple2.of(s, f));
+            .map(f -> ShipWithFactionSymbol.from(s, f));
     }
 
     @POST
