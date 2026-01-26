@@ -34,7 +34,20 @@
                         {good.getUnitsRequired()} of {good.getTradeSymbol()} to {good.getDestinationSymbol}<br>
                     {/for}
                 </td>
-                <td>{contract.getAccepted()}</td>
+                <td>
+                    <form>
+                        <input type="hidden" name="contract_id" value="{contract.getId()}">
+                        <button type="button"
+                                class="btn btn-outline-primary"
+                                hx-post="/accept-contract"
+                                hx-trigger="click"
+                                hx-target="#contracts"
+                                {#if contract.getAccepted() == true}
+                                    disabled
+                                {/if}>accept
+                        </button>
+                    </form>
+                </td>
                 <td>{contract.getFulfilled()}</td>
                 <td>{contract.getExpiration()}</td>
                 <td>{contract.getDeadlineToAccept()}</td>

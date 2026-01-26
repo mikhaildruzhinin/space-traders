@@ -1,6 +1,6 @@
 package ru.mikhaildruzhinin.spacetraders;
 
-import io.quarkus.cache.CacheInvalidate;
+import io.quarkus.cache.CacheInvalidateAll;
 import io.quarkus.cache.CacheResult;
 import io.quarkus.qute.CheckedTemplate;
 import io.quarkus.qute.TemplateInstance;
@@ -8,10 +8,7 @@ import io.smallrye.mutiny.Multi;
 import io.smallrye.mutiny.Uni;
 import io.smallrye.mutiny.tuples.Tuple2;
 import jakarta.inject.Inject;
-import jakarta.ws.rs.GET;
-import jakarta.ws.rs.POST;
-import jakarta.ws.rs.Path;
-import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
 import org.eclipse.microprofile.rest.client.inject.RestClient;
 import org.jboss.resteasy.reactive.ClientWebApplicationException;
@@ -105,17 +102,22 @@ public class IndexResource {
     @POST
     @Path("/negotiate-contract")
     @Produces(MediaType.TEXT_HTML)
-    @CacheInvalidate(cacheName = "contracts")
     public Uni<TemplateInstance> negotiateContract() {
         // TODO: testing
         // FIXME: 2026-01-26 06:34:31,450 ERROR [io.ver.cor.htt.imp.HttpClientRequestImpl] null:-1 (vert.x-eventloop-thread-1) The timeout period of 30000ms has been exceeded while executing GET /v2/systems/X1-HD80/waypoints/X1-HD80-H48 for server null
         // For now there's an assumption that an agent can only ever be a member of his starting faction.
         return fetchMyAgent().map(Agent::getStartingFaction)
             .flatMap(this::findDockedShipWithinFaction)
-            .flatMap(ship -> contractsApi.negotiateContract(ship.getSymbol()).replaceWithVoid())
+            .flatMap(ship -> getNegotiateContract201ResponseUni(ship).replaceWithVoid())
             .onFailure(ClientWebApplicationException.class).recoverWithItem((Void) null)
             .flatMap(ignored -> fetchContracts())
             .map(Templates::contracts);
+    }
+
+    @CacheInvalidateAll(cacheName = "contracts")
+    protected Uni<Contract> getNegotiateContract201ResponseUni(Ship ship) {
+        return contractsApi.negotiateContract(ship.getSymbol())
+            .map(response -> response.getData().getContract());
     }
 
     private Uni<Ship> findDockedShipWithinFaction(String faction) {
@@ -151,6 +153,23 @@ public class IndexResource {
         return systemsApi.getWaypoint(systemSymbol, waypointSymbol)
             .map(response -> response.getData().getFaction().getSymbol())
             .map(f -> Tuple2.of(s, f));
+    }
+
+    @POST
+    @Path("/accept-contract")
+    @Produces(MediaType.TEXT_HTML)
+    public Uni<TemplateInstance> accept(@FormParam("contract_id") String contractId) {
+        return acceptContract(contractId)
+            .replaceWithVoid()
+            .onFailure(ClientWebApplicationException.class).recoverWithItem((Void) null)
+            .flatMap(ignored -> fetchContracts())
+            .map(Templates::contracts);
+    }
+
+    @CacheInvalidateAll(cacheName = "contracts")
+    protected Uni<Contract> acceptContract(String contractId) {
+        return contractsApi.acceptContract(contractId)
+            .map(response -> response.getData().getContract());
     }
 
     @CacheResult(cacheName = "contracts")
