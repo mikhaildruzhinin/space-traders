@@ -108,6 +108,7 @@ public class IndexResource {
     @CacheInvalidate(cacheName = "contracts")
     public Uni<TemplateInstance> negotiateContract() {
         // TODO: testing
+        // FIXME: 2026-01-26 06:34:31,450 ERROR [io.ver.cor.htt.imp.HttpClientRequestImpl] null:-1 (vert.x-eventloop-thread-1) The timeout period of 30000ms has been exceeded while executing GET /v2/systems/X1-HD80/waypoints/X1-HD80-H48 for server null
         // For now there's an assumption that an agent can only ever be a member of his starting faction.
         return fetchMyAgent().map(Agent::getStartingFaction)
             .flatMap(this::findDockedShipWithinFaction)
