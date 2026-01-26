@@ -7,7 +7,16 @@
 
         <div class="mb-2" hx-get="/starting-location" hx-trigger="load">Loading starting location...</div>
 
-        <div class="mb-2" hx-get="/contracts" hx-trigger="load">Loading contracts...</div>
+        <button type="button"
+                class="btn btn-primary mb-2"
+                hx-post="/negotiate-contract"
+                hx-trigger="click"
+                hx-target="#contracts"
+                hx-swap="outerHTML">
+            Negotiate a new contract
+        </button>
+
+        <div id="contracts" class="mb-2" hx-get="/contracts" hx-trigger="load">Loading contracts...</div>
     </main>
     <footer></footer>
 {/include}

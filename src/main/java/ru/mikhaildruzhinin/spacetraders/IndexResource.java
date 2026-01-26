@@ -1,15 +1,20 @@
 package ru.mikhaildruzhinin.spacetraders;
 
+import io.quarkus.cache.CacheInvalidate;
 import io.quarkus.cache.CacheResult;
 import io.quarkus.qute.CheckedTemplate;
 import io.quarkus.qute.TemplateInstance;
+import io.smallrye.mutiny.Multi;
 import io.smallrye.mutiny.Uni;
+import io.smallrye.mutiny.tuples.Tuple2;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.GET;
+import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.MediaType;
 import org.eclipse.microprofile.rest.client.inject.RestClient;
+import org.jboss.resteasy.reactive.ClientWebApplicationException;
 import ru.mikhaildruzhinin.spacetraders.generated.client.api.*;
 import ru.mikhaildruzhinin.spacetraders.generated.client.model.*;
 
@@ -33,6 +38,10 @@ public class IndexResource {
     @RestClient
     @Inject
     ContractsApi contractsApi;
+
+    @RestClient
+    @Inject
+    FleetApi fleetApi;
 
     @CheckedTemplate
     public static class Templates {
@@ -65,9 +74,7 @@ public class IndexResource {
     @Path("/agent")
     @Produces(MediaType.TEXT_HTML)
     public Uni<TemplateInstance> agent() {
-        return getMyAgent()
-            .map(GetMyAgent200Response::getData)
-            .map(Templates::agent);
+        return fetchMyAgent().map(Templates::agent);
     }
 
     @GET
@@ -75,32 +82,80 @@ public class IndexResource {
     @Produces(MediaType.TEXT_HTML)
     @CacheResult(cacheName = "starting-location")
     public Uni<TemplateInstance> startingLocation() {
-
-        return getMyAgent()
-            .map(GetMyAgent200Response::getData)
+        return fetchMyAgent()
             .map(agent -> WaypointSymbol.from(agent.getHeadquarters()))
-            .flatMap(waypoint -> systemsApi.getWaypoint(
-                waypoint.system(),
-                waypoint.waypoint())
-            )
+            .flatMap(waypoint -> systemsApi.getWaypoint(waypoint.system(), waypoint.waypoint()))
             .map(GetWaypoint200Response::getData)
             .map(Templates::waypoint);
     }
 
     @CacheResult(cacheName = "my-agent")
-    protected Uni<GetMyAgent200Response> getMyAgent() {
-        return agentsApi.getMyAgent();
+    protected Uni<Agent> fetchMyAgent() {
+        return agentsApi.getMyAgent().map(GetMyAgent200Response::getData);
     }
 
     @GET
     @Path("/contracts")
     @Produces(MediaType.TEXT_HTML)
-    @CacheResult(cacheName = "contracts")
     public Uni<TemplateInstance> contracts() {
         // TODO: persist contract
+        return fetchContracts().map(Templates::contracts);
+    }
+
+    @POST
+    @Path("/negotiate-contract")
+    @Produces(MediaType.TEXT_HTML)
+    @CacheInvalidate(cacheName = "contracts")
+    public Uni<TemplateInstance> negotiateContract() {
+        // TODO: testing
+        // For now there's an assumption that an agent can only ever be a member of his starting faction.
+        return fetchMyAgent().map(Agent::getStartingFaction)
+            .flatMap(this::findDockedShipWithinFaction)
+            .flatMap(ship -> contractsApi.negotiateContract(ship.getSymbol()).replaceWithVoid())
+            .onFailure(ClientWebApplicationException.class).recoverWithItem((Void) null)
+            .flatMap(ignored -> fetchContracts())
+            .map(Templates::contracts);
+    }
+
+    private Uni<Ship> findDockedShipWithinFaction(String faction) {
+        FactionSymbol factionSymbol;
+        try {
+            factionSymbol = FactionSymbol.fromString(faction);
+        } catch (IllegalArgumentException e) {
+            return Uni.createFrom().failure(e);
+        }
+        // TODO: cache ships
+        // TODO: add pagination
+        return fleetApi.getMyShips(1, 20)
+            .map(GetMyShips200Response::getData)
+            .onItem().transformToMulti(Multi.createFrom()::iterable)
+            .filter(this::checkIfDocked)
+            .onItem().transformToUniAndMerge(this::attachWaypointFaction)
+            .filter(sf -> sf.getItem2() == factionSymbol)
+            .map(Tuple2::getItem1)
+            .select().first().toUni()
+            .onItem().ifNull().failWith(() -> new RuntimeException("No docked ships within faction " + faction)); // TODO: add custom exception
+    }
+
+    private boolean checkIfDocked(Ship s) {
+        return s.getNav().getStatus() == ShipNavStatus.DOCKED;
+    }
+
+    // TODO: create a dedicated record
+    private Uni<Tuple2<Ship, FactionSymbol>> attachWaypointFaction(Ship s) {
+        ShipNav shipNav = s.getNav();
+        String systemSymbol = shipNav.getSystemSymbol();
+        String waypointSymbol = shipNav.getWaypointSymbol();
+
+        return systemsApi.getWaypoint(systemSymbol, waypointSymbol)
+            .map(response -> response.getData().getFaction().getSymbol())
+            .map(f -> Tuple2.of(s, f));
+    }
+
+    @CacheResult(cacheName = "contracts")
+    protected Uni<List<Contract>> fetchContracts() {
         // TODO: add pagination
         return contractsApi.getContracts(1, 20)
-            .map(GetContracts200Response::getData)
-            .map(Templates::contracts);
+            .map(GetContracts200Response::getData);
     }
 }
