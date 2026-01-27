@@ -126,10 +126,8 @@ public class IndexResource {
         } catch (IllegalArgumentException e) {
             return Uni.createFrom().failure(e);
         }
-        // TODO: cache ships
-        // TODO: add pagination
-        return fleetApi.getMyShips(1, 20)
-            .map(GetMyShips200Response::getData)
+
+        return fetchShips()
             .onItem().transformToMulti(Multi.createFrom()::iterable)
             .filter(this::checkIfDocked)
             .onItem().transformToUniAndMerge(this::attachWaypointFaction)
@@ -137,6 +135,13 @@ public class IndexResource {
             .map(ShipWithFactionSymbol::ship)
             .select().first().toUni()
             .onItem().ifNull().failWith(() -> new RuntimeException("No docked ships within faction " + faction)); // TODO: add custom exception
+    }
+
+    // TODO: add pagination
+    @CacheResult(cacheName = "ships")
+    protected Uni<List<Ship>> fetchShips() {
+        return fleetApi.getMyShips(1, 20)
+            .map(GetMyShips200Response::getData);
     }
 
     private boolean checkIfDocked(Ship s) {
