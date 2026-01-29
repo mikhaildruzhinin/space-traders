@@ -3416,17 +3416,10 @@
           },
           {
             "schema": {
-              "anyOf": [
-                {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/WaypointTraitSymbol"
-                  }
-                },
-                {
-                  "$ref": "#/components/schemas/WaypointTraitSymbol"
-                }
-              ]
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/WaypointTraitSymbol"
+              }
             },
             "in": "query",
             "name": "traits",
