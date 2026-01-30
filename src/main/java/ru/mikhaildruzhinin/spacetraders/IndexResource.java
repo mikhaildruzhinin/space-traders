@@ -14,6 +14,8 @@ import org.jboss.resteasy.reactive.ClientWebApplicationException;
 import ru.mikhaildruzhinin.spacetraders.generated.client.api.*;
 import ru.mikhaildruzhinin.spacetraders.generated.client.model.*;
 
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 @Path("/")
@@ -180,5 +182,50 @@ public class IndexResource {
         // TODO: add pagination
         return contractsApi.getContracts(1, 20)
             .map(GetContracts200Response::getData);
+    }
+
+    @GET
+    @Path("/shipyards")
+    @Produces(MediaType.APPLICATION_JSON)
+    public Uni<List<Waypoint>> shipyards() {
+        return fetchMyAgent()
+            .map(agent -> WaypointSymbol.from(agent.getHeadquarters()))
+            .flatMap(hq ->
+                systemsApi.getSystemWaypoints(hq.system(), 1, 20, null, List.of(WaypointTraitSymbol.SHIPYARD)).flatMap(result -> {
+                    List<Waypoint> firstWaypoints = result.getData();
+                    List<Waypoint> all;
+                    if (firstWaypoints == null) {
+                        all = new ArrayList<>(Collections.emptyList());
+                    } else {
+                        all = firstWaypoints;
+                    }
+
+                    Meta meta = result.getMeta();
+                    if (meta == null || meta.getTotal() == null || meta.getLimit() == null) {
+                        return Uni.createFrom().item(all);
+                    }
+
+                    int total = meta.getTotal();
+                    int pageSize = meta.getLimit();
+                    int totalPages = (int) Math.ceil(total / (double) pageSize);
+
+                    if (totalPages <= 1) {
+                        return Uni.createFrom().item(all);
+                    }
+
+                    return Multi.createFrom().range(2, totalPages + 1)
+                        .onItem().transformToUniAndConcatenate(page ->
+                            systemsApi.getSystemWaypoints(hq.system(), page, pageSize, null, List.of(WaypointTraitSymbol.SHIPYARD))
+                        )
+                        .map(GetSystemWaypoints200Response::getData)
+                        .onItem().transformToMulti(Multi.createFrom()::iterable)
+                        .merge()
+                        .collect().asList()
+                        .map(x -> {
+                            all.addAll(x);
+                            return all;
+                        });
+                })
+            );
     }
 }
