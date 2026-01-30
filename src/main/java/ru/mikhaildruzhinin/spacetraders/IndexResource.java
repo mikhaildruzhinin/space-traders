@@ -17,6 +17,7 @@ import ru.mikhaildruzhinin.spacetraders.generated.client.model.*;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 
 @Path("/")
 public class IndexResource {
@@ -132,7 +133,7 @@ public class IndexResource {
         return fetchShips()
             .onItem().transformToMulti(Multi.createFrom()::iterable)
             .filter(this::checkIfDocked)
-            .onItem().transformToUniAndMerge(this::attachWaypointFaction)
+            .onItem().transformToUniAndConcatenate(this::attachWaypointFaction)
             .filter(sf -> sf.factionSymbol() == factionSymbol)
             .map(ShipWithFactionSymbol::ship)
             .select().first().toUni()
@@ -191,41 +192,78 @@ public class IndexResource {
         return fetchMyAgent()
             .map(agent -> WaypointSymbol.from(agent.getHeadquarters()))
             .flatMap(hq ->
-                systemsApi.getSystemWaypoints(hq.system(), 1, 20, null, List.of(WaypointTraitSymbol.SHIPYARD)).flatMap(result -> {
-                    List<Waypoint> firstWaypoints = result.getData();
-                    List<Waypoint> all;
-                    if (firstWaypoints == null) {
-                        all = new ArrayList<>(Collections.emptyList());
-                    } else {
-                        all = firstWaypoints;
-                    }
-
-                    Meta meta = result.getMeta();
-                    if (meta == null || meta.getTotal() == null || meta.getLimit() == null) {
-                        return Uni.createFrom().item(all);
-                    }
-
-                    int total = meta.getTotal();
-                    int pageSize = meta.getLimit();
-                    int totalPages = (int) Math.ceil(total / (double) pageSize);
-
-                    if (totalPages <= 1) {
-                        return Uni.createFrom().item(all);
-                    }
-
-                    return Multi.createFrom().range(2, totalPages + 1)
-                        .onItem().transformToUniAndConcatenate(page ->
-                            systemsApi.getSystemWaypoints(hq.system(), page, pageSize, null, List.of(WaypointTraitSymbol.SHIPYARD))
-                        )
-                        .map(GetSystemWaypoints200Response::getData)
-                        .onItem().transformToMulti(Multi.createFrom()::iterable)
-                        .merge()
-                        .collect().asList()
-                        .map(x -> {
-                            all.addAll(x);
-                            return all;
-                        });
-                })
+                findWaypointsInSystem(hq.system(), null, List.of(WaypointTraitSymbol.SHIPYARD))
             );
+    }
+
+    @GET
+    @Path("/ships")
+    @Produces(MediaType.APPLICATION_JSON)
+    public Uni<List<ShipyardShip>> ships() {
+        return fetchMyAgent()
+            .map(agent -> WaypointSymbol.from(agent.getHeadquarters()))
+            .flatMap(hq ->
+                findWaypointsInSystem(hq.system(), null, List.of(WaypointTraitSymbol.SHIPYARD))
+            )
+            .onItem().transformToMulti(Multi.createFrom()::iterable)
+            .onItem().transformToUniAndConcatenate(w -> systemsApi.getShipyard(w.getSystemSymbol(), w.getSymbol()))
+            .map(response -> {
+                if (response == null || response.getData() == null || response.getData().getShips() == null) {
+                    return List.<ShipyardShip>of();
+                }
+                return response.getData().getShips();
+            })
+            .collect().asList()
+            .map(lists -> lists.stream().filter(Objects::nonNull).flatMap(List::stream).toList());
+    }
+
+    private Uni<List<Waypoint>> findWaypointsInSystem(
+        String system,
+        WaypointType type,
+        List<WaypointTraitSymbol> traits
+    ) {
+        int initialPageSize = 20;
+        return systemsApi.getSystemWaypoints(system, 1, initialPageSize, type, traits)
+            .flatMap(result -> {
+                List<Waypoint> firstWaypoints = result.getData();
+                List<Waypoint> all;
+                if (firstWaypoints == null) {
+                    all = new ArrayList<>(Collections.emptyList());
+                } else {
+                    all = firstWaypoints;
+                }
+
+                Meta meta = result.getMeta();
+                if (meta == null || meta.getTotal() == null || meta.getLimit() == null) {
+                    return Uni.createFrom().item(all);
+                }
+
+                int total = meta.getTotal();
+                int pageSize = meta.getLimit();
+                int totalPages = (int) Math.ceil(total / (double) pageSize);
+
+                if (totalPages <= 1) {
+                    return Uni.createFrom().item(all);
+                }
+
+                return Multi.createFrom().range(2, totalPages + 1)
+                    .onItem().transformToUniAndConcatenate(page ->
+                        systemsApi.getSystemWaypoints(
+                            system,
+                            page,
+                            pageSize,
+                            type,
+                            traits
+                        )
+                    )
+                    .map(GetSystemWaypoints200Response::getData)
+                    .onItem().transformToMulti(Multi.createFrom()::iterable)
+                    .merge()
+                    .collect().asList()
+                    .map(x -> {
+                        all.addAll(x);
+                        return all;
+                    });
+            });
     }
 }
