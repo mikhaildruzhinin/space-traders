@@ -17,7 +17,6 @@ import ru.mikhaildruzhinin.spacetraders.generated.client.model.*;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.Objects;
 
 @Path("/")
 public class IndexResource {
@@ -199,7 +198,7 @@ public class IndexResource {
     @GET
     @Path("/ships")
     @Produces(MediaType.APPLICATION_JSON)
-    public Uni<List<ShipyardShip>> ships() {
+    public Uni<List<Shipyard>> ships() {
         return fetchMyAgent()
             .map(agent -> WaypointSymbol.from(agent.getHeadquarters()))
             .flatMap(hq ->
@@ -207,14 +206,9 @@ public class IndexResource {
             )
             .onItem().transformToMulti(Multi.createFrom()::iterable)
             .onItem().transformToUniAndConcatenate(w -> systemsApi.getShipyard(w.getSystemSymbol(), w.getSymbol()))
-            .map(response -> {
-                if (response == null || response.getData() == null || response.getData().getShips() == null) {
-                    return List.<ShipyardShip>of();
-                }
-                return response.getData().getShips();
-            })
-            .collect().asList()
-            .map(lists -> lists.stream().filter(Objects::nonNull).flatMap(List::stream).toList());
+            .map(GetShipyard200Response::getData)
+            .filter(x -> (x.getShips() != null && !x.getShips().isEmpty()))
+            .collect().asList();
     }
 
     private Uni<List<Waypoint>> findWaypointsInSystem(
