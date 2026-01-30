@@ -1,0 +1,39 @@
+{@java.util.List<ru.mikhaildruzhinin.spacetraders.generated.client.model.Ship> ships}
+
+<table class="table table-hover table-bordered table-sm caption-top">
+    <caption>Ships</caption>
+    <thead class="table-primary">
+    <tr>
+        <td>Symbol</td>
+        <td>Role</td>
+        <td>Nav</td>
+        <td>Crew</td>
+        <td>Frame</td>
+        <td>Reactor</td>
+        <td>Engine</td>
+        <td>Modules</td>
+        <td>Mounts</td>
+        <td>Cargo</td>
+        <td>Fuel</td>
+        <td>Cooldown</td>
+    </tr>
+    </thead>
+    <tbody>
+    {#for ship in ships}
+        <tr>
+            <td>{ship.getSymbol()}</td>
+            <td>{ship.getRegistration().getRole()}</td>
+            <td>{ship.getNav()}</td>
+            <td>{ship.getCrew().getCurrent()}</td>
+            <td>{ship.getFrame().getName()}</td>
+            <td>{ship.getReactor().getName()}</td>
+            <td>{ship.getEngine().getName()}</td>
+            <td>{ship.getModules()}</td>
+            <td>{ship.getMounts()}</td>
+            <td>{ship.getCargo()}</td>
+            <td>{ship.getFuel()}</td>
+            <td>{ship.getCooldown()}</td>
+        </tr>
+    {/for}
+    </tbody>
+</table>

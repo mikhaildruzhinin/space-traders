@@ -17,6 +17,7 @@ import ru.mikhaildruzhinin.spacetraders.generated.client.model.*;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 
 @Path("/")
 public class IndexResource {
@@ -50,6 +51,8 @@ public class IndexResource {
         public static native TemplateInstance waypoint(Waypoint waypoint);
 
         public static native TemplateInstance contracts(List<Contract> contracts);
+
+        public static native TemplateInstance ships(List<Ship> ships);
     }
 
     @GET
@@ -185,20 +188,9 @@ public class IndexResource {
     }
 
     @GET
-    @Path("/shipyards")
+    @Path("/submit")
     @Produces(MediaType.APPLICATION_JSON)
-    public Uni<List<Waypoint>> shipyards() {
-        return fetchMyAgent()
-            .map(agent -> WaypointSymbol.from(agent.getHeadquarters()))
-            .flatMap(hq ->
-                findWaypointsInSystem(hq.system(), null, List.of(WaypointTraitSymbol.SHIPYARD))
-            );
-    }
-
-    @GET
-    @Path("/ships")
-    @Produces(MediaType.APPLICATION_JSON)
-    public Uni<List<Shipyard>> ships() {
+    public Uni<?> submit() {
         return fetchMyAgent()
             .map(agent -> WaypointSymbol.from(agent.getHeadquarters()))
             .flatMap(hq ->
@@ -208,12 +200,20 @@ public class IndexResource {
             .onItem().transformToUniAndConcatenate(w -> systemsApi.getShipyard(w.getSystemSymbol(), w.getSymbol()))
             .map(GetShipyard200Response::getData)
             .filter(x -> (x.getShips() != null && !x.getShips().isEmpty()))
-            .collect().asList();
+            .collect().asList()
+            .map(List::getFirst)
+            .flatMap(shipyard -> {
+                PurchaseShipRequest psr = new PurchaseShipRequest();
+                psr.setShipType(ShipType.SHIP_MINING_DRONE);
+                psr.setWaypointSymbol(shipyard.getSymbol());
+                return fleetApi.purchaseShip(psr);
+            })
+            .map(PurchaseShip201Response::getData);
     }
 
     private Uni<List<Waypoint>> findWaypointsInSystem(
         String system,
-        WaypointType type,
+        @SuppressWarnings("SameParameterValue") WaypointType type,
         List<WaypointTraitSymbol> traits
     ) {
         int initialPageSize = 20;
@@ -221,11 +221,7 @@ public class IndexResource {
             .flatMap(result -> {
                 List<Waypoint> firstWaypoints = result.getData();
                 List<Waypoint> all;
-                if (firstWaypoints == null) {
-                    all = new ArrayList<>(Collections.emptyList());
-                } else {
-                    all = firstWaypoints;
-                }
+                all = Objects.requireNonNullElseGet(firstWaypoints, () -> new ArrayList<>(Collections.emptyList()));
 
                 Meta meta = result.getMeta();
                 if (meta == null || meta.getTotal() == null || meta.getLimit() == null) {
@@ -259,5 +255,15 @@ public class IndexResource {
                         return all;
                     });
             });
+    }
+
+    @GET
+    @Path("/ships")
+    @Produces(MediaType.APPLICATION_JSON)
+    public Uni<TemplateInstance> ships() {
+        // TODO: add pagination
+        return fleetApi.getMyShips(1, 20)
+            .map(GetMyShips200Response::getData).
+            map(Templates::ships);
     }
 }
