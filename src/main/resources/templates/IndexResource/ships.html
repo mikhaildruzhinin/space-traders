@@ -44,7 +44,15 @@
                 </ul>
 
             </td>
-            <td>{ship.getCargo()}</td>
+            <td>
+                capacity:&nbsp;{ship.getCargo().getCapacity()}<br>
+                units:&nbsp;{ship.getCargo().getUnits()}<br>
+                <ul>
+                    {#for item in ship.getCargo().getInventory()}
+                        <li>{item}</li>
+                    {/for}
+                </ul>
+            </td>
             <td>
                 current:&nbsp;{ship.getFuel().getCurrent}<br>
                 capacity:&nbsp;{ship.getFuel().getCapacity}
