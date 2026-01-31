@@ -3,6 +3,8 @@
         <p class="mb-2" hx-get="/status" hx-trigger="every 2s">Loading status...</p>
     </header>
     <main>
+        <button type="button" class="btn btn-primary" hx-post="/submit" hx-trigger="click">Submit</button>
+
         <div class="mb-2" hx-get="/agent" hx-trigger="every 2s">Loading agent...</div>
 
         <div id="contracts" class="mb-2" hx-get="/contracts" hx-trigger="every 2s">Loading contracts...</div>

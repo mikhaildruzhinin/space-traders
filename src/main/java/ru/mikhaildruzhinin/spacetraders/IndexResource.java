@@ -9,6 +9,7 @@ import io.smallrye.mutiny.Uni;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.Response;
 import org.eclipse.microprofile.rest.client.inject.RestClient;
 import org.jboss.resteasy.reactive.ClientWebApplicationException;
 import ru.mikhaildruzhinin.spacetraders.generated.client.api.*;
@@ -187,10 +188,10 @@ public class IndexResource {
             .map(GetContracts200Response::getData);
     }
 
-    @GET
+    @POST
     @Path("/submit")
     @Produces(MediaType.APPLICATION_JSON)
-    public Uni<?> submit() {
+    public Uni<Response> submit() {
         return fetchMyAgent()
             .map(agent -> WaypointSymbol.from(agent.getHeadquarters()))
             .flatMap(hq ->
@@ -199,7 +200,7 @@ public class IndexResource {
             .flatMap(this::getShipyards)
             .map(List::getFirst)
             .flatMap(s -> purchaseShip(s, ShipType.SHIP_MINING_DRONE))
-            ;
+            .replaceWith(Response.noContent().build());
     }
 
     private Uni<List<Shipyard>> getShipyards(List<Waypoint> waypoints) {
