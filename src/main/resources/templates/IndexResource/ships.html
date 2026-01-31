@@ -23,7 +23,10 @@
         <tr>
             <td>{ship.getSymbol()}</td>
             <td>{ship.getRegistration().getRole()}</td>
-            <td>{ship.getNav()}</td>
+            <td>
+                {ship.getNav().getWaypointSymbol()}<br>
+                {ship.getNav().getStatus()}
+            </td>
             <td>{ship.getCrew().getCurrent()}</td>
             <td>{ship.getFrame().getName()}</td>
             <td>{ship.getReactor().getName()}</td>
