@@ -15,10 +15,7 @@ import org.jboss.resteasy.reactive.ClientWebApplicationException;
 import ru.mikhaildruzhinin.spacetraders.generated.client.api.*;
 import ru.mikhaildruzhinin.spacetraders.generated.client.model.*;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Objects;
+import java.util.*;
 
 @Path("/")
 public class IndexResource {
@@ -164,23 +161,6 @@ public class IndexResource {
             .map(f -> ShipWithFactionSymbol.from(s, f));
     }
 
-    @POST
-    @Path("/accept-contract")
-    @Produces(MediaType.TEXT_HTML)
-    public Uni<TemplateInstance> accept(@FormParam("contract_id") String contractId) {
-        return acceptContract(contractId)
-            .replaceWithVoid()
-            .onFailure(ClientWebApplicationException.class).recoverWithItem((Void) null) // TODO: log exception
-            .flatMap(ignored -> fetchContracts())
-            .map(Templates::contracts);
-    }
-
-    @CacheInvalidateAll(cacheName = "contracts")
-    protected Uni<Contract> acceptContract(String contractId) {
-        return contractsApi.acceptContract(contractId)
-            .map(response -> response.getData().getContract());
-    }
-
     @CacheResult(cacheName = "contracts")
     protected Uni<List<Contract>> fetchContracts() {
         // TODO: add pagination
@@ -192,7 +172,24 @@ public class IndexResource {
     @Path("/submit")
     @Produces(MediaType.APPLICATION_JSON)
     public Uni<Response> submit() {
-        return fetchMyAgent()
+
+        Uni<Contract> acceptedContract = fetchContracts().flatMap(contracts ->
+                fetchShips().flatMap(ships -> {
+                    if (contracts == null || contracts.isEmpty()) {
+                        Optional<Ship> maybeDockedShip = ships.stream().filter(this::checkIfDocked).findAny();
+                        if (maybeDockedShip.isPresent()) {
+                            // TODO: handle being unable to negotiate a new contract
+                            return negotiateContract(maybeDockedShip.get())
+                                .replaceWithVoid()
+                                .replaceWith(contracts);
+                        }
+                    }
+                    return Uni.createFrom().item(contracts);
+                }))
+            .flatMap(contracts -> acceptContract(contracts.getFirst().getId()));
+
+        return acceptedContract.replaceWithVoid()
+            .replaceWith(fetchMyAgent())
             .map(agent -> WaypointSymbol.from(agent.getHeadquarters()))
             .flatMap(hq ->
                 findWaypointsInSystem(hq.system(), null, List.of(WaypointTraitSymbol.SHIPYARD))
@@ -201,6 +198,12 @@ public class IndexResource {
             .map(List::getFirst)
             .flatMap(s -> purchaseShip(s, ShipType.SHIP_MINING_DRONE))
             .replaceWith(Response.noContent().build());
+    }
+
+    @CacheInvalidateAll(cacheName = "contracts")
+    protected Uni<Contract> acceptContract(String contractId) {
+        return contractsApi.acceptContract(contractId)
+            .map(response -> response.getData().getContract());
     }
 
     private Uni<List<Shipyard>> getShipyards(List<Waypoint> waypoints) {
