@@ -196,19 +196,28 @@ public class IndexResource {
             .flatMap(hq ->
                 findWaypointsInSystem(hq.system(), null, List.of(WaypointTraitSymbol.SHIPYARD))
             )
-            .onItem().transformToMulti(Multi.createFrom()::iterable)
+            .flatMap(this::getShipyards)
+            .map(List::getFirst)
+            .flatMap(s -> purchaseShip(s, ShipType.SHIP_MINING_DRONE))
+            ;
+    }
+
+    private Uni<List<Shipyard>> getShipyards(List<Waypoint> waypoints) {
+        return Multi.createFrom().iterable(waypoints)
             .onItem().transformToUniAndConcatenate(w -> systemsApi.getShipyard(w.getSystemSymbol(), w.getSymbol()))
             .map(GetShipyard200Response::getData)
             .filter(x -> (x.getShips() != null && !x.getShips().isEmpty()))
-            .collect().asList()
-            .map(List::getFirst)
-            .flatMap(shipyard -> {
-                PurchaseShipRequest psr = new PurchaseShipRequest();
-                psr.setShipType(ShipType.SHIP_MINING_DRONE);
-                psr.setWaypointSymbol(shipyard.getSymbol());
-                return fleetApi.purchaseShip(psr);
-            })
-            .map(PurchaseShip201Response::getData);
+            .collect().asList();
+    }
+
+    @SuppressWarnings("SameParameterValue")
+    @CacheInvalidateAll(cacheName = "my-agent")
+    @CacheInvalidateAll(cacheName = "my-ships")
+    protected Uni<PurchaseShip201ResponseData> purchaseShip(Shipyard shipyard, ShipType type) {
+        PurchaseShipRequest psr = new PurchaseShipRequest();
+        psr.setShipType(type);
+        psr.setWaypointSymbol(shipyard.getSymbol());
+        return fleetApi.purchaseShip(psr).map(PurchaseShip201Response::getData);
     }
 
     private Uni<List<Waypoint>> findWaypointsInSystem(
@@ -260,6 +269,7 @@ public class IndexResource {
     @GET
     @Path("/ships")
     @Produces(MediaType.APPLICATION_JSON)
+    @CacheResult(cacheName = "my-ships")
     public Uni<TemplateInstance> ships() {
         // TODO: add pagination
         return fleetApi.getMyShips(1, 20)
