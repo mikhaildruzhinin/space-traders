@@ -1,13 +1,13 @@
 {#include base.html}
     <header>
-        <p class="mb-2" hx-get="/status" hx-trigger="load">Loading status...</p>
+        <p class="mb-2" hx-get="/status" hx-trigger="every 2s">Loading status...</p>
     </header>
     <main>
-        <div class="mb-2" hx-get="/agent" hx-trigger="load">Loading agent...</div>
+        <div class="mb-2" hx-get="/agent" hx-trigger="every 2s">Loading agent...</div>
 
-        <div id="contracts" class="mb-2" hx-get="/contracts" hx-trigger="load">Loading contracts...</div>
+        <div id="contracts" class="mb-2" hx-get="/contracts" hx-trigger="every 2s">Loading contracts...</div>
 
-        <div id="ships" class="mb-2" hx-get="/ships" hx-trigger="load">Loading ships...</div>
+        <div id="ships" class="mb-2" hx-get="/ships" hx-trigger="every 2s">Loading ships...</div>
     </main>
     <footer></footer>
 {/include}
