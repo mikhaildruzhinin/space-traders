@@ -28,11 +28,32 @@
             <td>{ship.getFrame().getName()}</td>
             <td>{ship.getReactor().getName()}</td>
             <td>{ship.getEngine().getName()}</td>
-            <td>{ship.getModules()}</td>
-            <td>{ship.getMounts()}</td>
+            <td>
+                <ul>
+                    {#for module in ship.getModules()}
+                        <li>{module.getName()}</li>
+                    {/for}
+                </ul>
+
+            </td>
+            <td>
+                <ul>
+                    {#for mount in ship.getMounts()}
+                        <li>{mount.getName()}</li>
+                    {/for}
+                </ul>
+
+            </td>
             <td>{ship.getCargo()}</td>
-            <td>{ship.getFuel()}</td>
-            <td>{ship.getCooldown()}</td>
+            <td>
+                current:&nbsp;{ship.getFuel().getCurrent}<br>
+                capacity:&nbsp;{ship.getFuel().getCapacity}
+            </td>
+            <td>
+                total:&nbsp;{ship.getCooldown().getTotalSeconds()}s<br>
+                remaining:&nbsp;{ship.getCooldown().getRemainingSeconds()}s<br>
+                expiration:&nbsp;{ship.getCooldown().getExpiration()}
+            </td>
         </tr>
     {/for}
     </tbody>
