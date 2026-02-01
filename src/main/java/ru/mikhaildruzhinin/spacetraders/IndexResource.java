@@ -128,16 +128,7 @@ public class IndexResource {
     @Path("/submit")
     @Produces(MediaType.APPLICATION_JSON)
     public Uni<Response> submit() {
-
-        return ensureContractAccepted().replaceWithVoid()
-            .replaceWith(fetchMyAgent())
-            .map(agent -> WaypointSymbol.from(agent.getHeadquarters()))
-            .flatMap(hq ->
-                findWaypointsInSystem(hq.system(), null, List.of(WaypointTraitSymbol.SHIPYARD))
-            )
-            .flatMap(this::getShipyards)
-            .map(List::getFirst)
-            .flatMap(s -> purchaseShip(s, ShipType.SHIP_MINING_DRONE))
+        return ensureContractAccepted().call(this::ensureShipPurchased)
             .replaceWith(Response.noContent().build());
     }
 
@@ -168,6 +159,16 @@ public class IndexResource {
             .map(response -> response.getData().getContract());
     }
 
+    private Uni<Ship> ensureShipPurchased() {
+        return fetchMyAgent().map(agent -> WaypointSymbol.from(agent.getHeadquarters()))
+            .flatMap(hq ->
+                findWaypointsInSystem(hq.system(), null, List.of(WaypointTraitSymbol.SHIPYARD))
+            )
+            .flatMap(this::getShipyards)
+            .map(List::getFirst)
+            .flatMap(s -> purchaseShip(s, ShipType.SHIP_MINING_DRONE));
+    }
+
     private Uni<List<Shipyard>> getShipyards(List<Waypoint> waypoints) {
         return Multi.createFrom().iterable(waypoints)
             .onItem().transformToUniAndConcatenate(w -> systemsApi.getShipyard(w.getSystemSymbol(), w.getSymbol()))
@@ -179,11 +180,11 @@ public class IndexResource {
     @SuppressWarnings("SameParameterValue")
     @CacheInvalidateAll(cacheName = "my-agent")
     @CacheInvalidateAll(cacheName = "my-ships")
-    protected Uni<PurchaseShip201ResponseData> purchaseShip(Shipyard shipyard, ShipType type) {
+    protected Uni<Ship> purchaseShip(Shipyard shipyard, ShipType type) {
         PurchaseShipRequest psr = new PurchaseShipRequest();
         psr.setShipType(type);
         psr.setWaypointSymbol(shipyard.getSymbol());
-        return fleetApi.purchaseShip(psr).map(PurchaseShip201Response::getData);
+        return fleetApi.purchaseShip(psr).map(r -> r.getData().getShip());
     }
 
     private Uni<List<Waypoint>> findWaypointsInSystem(
