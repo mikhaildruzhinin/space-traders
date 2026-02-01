@@ -11,7 +11,6 @@ import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import org.eclipse.microprofile.rest.client.inject.RestClient;
-import org.jboss.resteasy.reactive.ClientWebApplicationException;
 import ru.mikhaildruzhinin.spacetraders.generated.client.api.*;
 import ru.mikhaildruzhinin.spacetraders.generated.client.model.*;
 
@@ -101,43 +100,10 @@ public class IndexResource {
         return fetchContracts().map(Templates::contracts);
     }
 
-    @POST
-    @Path("/negotiate-contract")
-    @Produces(MediaType.TEXT_HTML)
-    public Uni<TemplateInstance> negotiate() {
-        // TODO: testing
-        // FIXME: 2026-01-26 06:34:31,450 ERROR [io.ver.cor.htt.imp.HttpClientRequestImpl] null:-1 (vert.x-eventloop-thread-1) The timeout period of 30000ms has been exceeded while executing GET /v2/systems/X1-HD80/waypoints/X1-HD80-H48 for server null
-        // For now there's an assumption that an agent can only ever be a member of his starting faction.
-        return fetchMyAgent().map(Agent::getStartingFaction)
-            .flatMap(this::findDockedShipWithinFaction)
-            .flatMap(ship -> negotiateContract(ship).replaceWithVoid())
-            .onFailure(ClientWebApplicationException.class).recoverWithItem((Void) null) // TODO: log exception
-            .flatMap(ignored -> fetchContracts())
-            .map(Templates::contracts);
-    }
-
     @CacheInvalidateAll(cacheName = "contracts")
     protected Uni<Contract> negotiateContract(Ship ship) {
         return contractsApi.negotiateContract(ship.getSymbol())
             .map(response -> response.getData().getContract());
-    }
-
-    private Uni<Ship> findDockedShipWithinFaction(String faction) {
-        FactionSymbol factionSymbol;
-        try {
-            factionSymbol = FactionSymbol.fromString(faction);
-        } catch (IllegalArgumentException e) {
-            return Uni.createFrom().failure(e);
-        }
-
-        return fetchShips()
-            .onItem().transformToMulti(Multi.createFrom()::iterable)
-            .filter(this::checkIfDocked)
-            .onItem().transformToUniAndConcatenate(this::attachWaypointFaction)
-            .filter(sf -> sf.factionSymbol() == factionSymbol)
-            .map(ShipWithFactionSymbol::ship)
-            .select().first().toUni()
-            .onItem().ifNull().failWith(() -> new RuntimeException("No docked ships within faction " + faction)); // TODO: add custom exception
     }
 
     // TODO: add pagination
@@ -149,16 +115,6 @@ public class IndexResource {
 
     private boolean checkIfDocked(Ship s) {
         return s.getNav().getStatus() == ShipNavStatus.DOCKED;
-    }
-
-    private Uni<ShipWithFactionSymbol> attachWaypointFaction(Ship s) {
-        ShipNav shipNav = s.getNav();
-        String systemSymbol = shipNav.getSystemSymbol();
-        String waypointSymbol = shipNav.getWaypointSymbol();
-
-        return systemsApi.getWaypoint(systemSymbol, waypointSymbol)
-            .map(response -> response.getData().getFaction().getSymbol())
-            .map(f -> ShipWithFactionSymbol.from(s, f));
     }
 
     @CacheResult(cacheName = "contracts")
@@ -173,22 +129,7 @@ public class IndexResource {
     @Produces(MediaType.APPLICATION_JSON)
     public Uni<Response> submit() {
 
-        Uni<Contract> acceptedContract = fetchContracts().flatMap(contracts ->
-                fetchShips().flatMap(ships -> {
-                    if (contracts == null || contracts.isEmpty()) {
-                        Optional<Ship> maybeDockedShip = ships.stream().filter(this::checkIfDocked).findAny();
-                        if (maybeDockedShip.isPresent()) {
-                            // TODO: handle being unable to negotiate a new contract
-                            return negotiateContract(maybeDockedShip.get())
-                                .replaceWithVoid()
-                                .replaceWith(contracts);
-                        }
-                    }
-                    return Uni.createFrom().item(contracts);
-                }))
-            .flatMap(contracts -> acceptContract(contracts.getFirst().getId()));
-
-        return acceptedContract.replaceWithVoid()
+        return ensureContractAccepted().replaceWithVoid()
             .replaceWith(fetchMyAgent())
             .map(agent -> WaypointSymbol.from(agent.getHeadquarters()))
             .flatMap(hq ->
@@ -198,6 +139,27 @@ public class IndexResource {
             .map(List::getFirst)
             .flatMap(s -> purchaseShip(s, ShipType.SHIP_MINING_DRONE))
             .replaceWith(Response.noContent().build());
+    }
+
+    private Uni<Contract> ensureContractAccepted() {
+        return fetchContracts()
+            .flatMap(this::ensureContractExists)
+            .flatMap(contracts -> acceptContract(contracts.getFirst().getId()));
+    }
+
+    private Uni<List<Contract>> ensureContractExists(List<Contract> contracts) {
+        return fetchShips().flatMap(ships -> {
+            if (contracts == null || contracts.isEmpty()) {
+                Optional<Ship> maybeDockedShip = ships.stream().filter(this::checkIfDocked).findAny();
+                if (maybeDockedShip.isPresent()) {
+                    // TODO: handle being unable to negotiate a new contract
+                    return negotiateContract(maybeDockedShip.get())
+                        .replaceWithVoid()
+                        .replaceWith(fetchContracts());
+                }
+            }
+            return Uni.createFrom().item(contracts);
+        });
     }
 
     @CacheInvalidateAll(cacheName = "contracts")
