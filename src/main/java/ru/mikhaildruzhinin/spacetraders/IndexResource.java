@@ -156,17 +156,32 @@ public class IndexResource {
         Uni<NavigateShip200ResponseData> navigationStart = Uni.combine().all().unis(ship, asteroid).asTuple()
             .flatMap(t -> startNavigation(t.getItem1(), t.getItem2()))
             .map(NavigateShip200Response::getData)
-            .invoke(r -> LOG.infof("Started navigation: %s", r.toString()));
+            .invoke(r -> LOG.infof("Started navigation: %s", r.toString()))
+            .memoize()
+            .indefinitely();
 
         Uni<ShipNav> navigationFinish = Uni.combine().all().unis(ship, navigationStart).asTuple()
             .flatMap(t -> finishNavigation(t.getItem1(), t.getItem2().getNav()))
             .invoke(r -> LOG.infof("Finished navigation: %s", r.toString()));
 
-        return navigationFinish.replaceWith(Response.noContent().build());
+        Uni<RefuelShip200ResponseData> refuel = navigationFinish.chain(() -> Uni.combine().all().unis(ship, navigationStart).asTuple()
+            .flatMap(t -> refuelShip(t.getItem1(), t.getItem2().getFuel()))
+            .invoke(r -> LOG.infof("Ship refueled: %s", r.toString()))
+            .map(RefuelShip200Response::getData));
+        return refuel.replaceWith(Response.noContent().build());
+    }
+
+    @CacheInvalidateAll(cacheName = "my-agent")
+    @CacheInvalidateAll(cacheName = "my-ships")
+    protected Uni<RefuelShip200Response> refuelShip(Ship ship, ShipFuel fuel) {
+        // TODO: handle unhappy paths
+        RefuelShipRequest rsr = new RefuelShipRequest();
+        rsr.setUnits(fuel.getConsumed().getAmount());
+        return fleetApi.refuelShip(ship.getSymbol(), rsr);
     }
 
     @CacheInvalidateAll(cacheName = "my-ships")
-    private Uni<ShipNav> finishNavigation(Ship ship, ShipNav nav) {
+    protected Uni<ShipNav> finishNavigation(Ship ship, ShipNav nav) {
         ShipNavRoute route = nav.getRoute();
         OffsetDateTime departureTime = route.getDepartureTime();
         OffsetDateTime arrivalTime = route.getArrival();
@@ -243,7 +258,7 @@ public class IndexResource {
 
     private Uni<List<Waypoint>> findWaypointsInSystem(
         String system,
-        @SuppressWarnings("SameParameterValue") WaypointType type,
+        WaypointType type,
         List<WaypointTraitSymbol> traits
     ) {
         int initialPageSize = 20;
