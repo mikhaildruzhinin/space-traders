@@ -15,6 +15,8 @@ import org.jboss.logging.Logger;
 import ru.mikhaildruzhinin.spacetraders.generated.client.api.*;
 import ru.mikhaildruzhinin.spacetraders.generated.client.model.*;
 
+import java.time.Duration;
+import java.time.OffsetDateTime;
 import java.util.*;
 
 @Path("/")
@@ -151,11 +153,33 @@ public class IndexResource {
             .map(List::getFirst)
             .invoke(w -> LOG.infof("Located destination: %s", w.toString()));
 
-        return Uni.combine().all().unis(ship, asteroid).asTuple()
+        Uni<NavigateShip200ResponseData> navigationStart = Uni.combine().all().unis(ship, asteroid).asTuple()
             .flatMap(t -> startNavigation(t.getItem1(), t.getItem2()))
             .map(NavigateShip200Response::getData)
-            .invoke(r -> LOG.infof("Started navigation: %s", r.toString()))
-            .replaceWith(Response.noContent().build());
+            .invoke(r -> LOG.infof("Started navigation: %s", r.toString()));
+
+        Uni<ShipNav> navigationFinish = Uni.combine().all().unis(ship, navigationStart).asTuple()
+            .flatMap(t -> finishNavigation(t.getItem1(), t.getItem2().getNav()))
+            .invoke(r -> LOG.infof("Finished navigation: %s", r.toString()));
+
+        return navigationFinish.replaceWith(Response.noContent().build());
+    }
+
+    @CacheInvalidateAll(cacheName = "my-ships")
+    private Uni<ShipNav> finishNavigation(Ship ship, ShipNav nav) {
+        ShipNavRoute route = nav.getRoute();
+        OffsetDateTime departureTime = route.getDepartureTime();
+        OffsetDateTime arrivalTime = route.getArrival();
+
+        Duration flightDuration = Duration.between(departureTime, arrivalTime);
+        if (flightDuration.isNegative()) {
+            flightDuration = Duration.ZERO;
+        }
+
+        return Uni.createFrom().voidItem()
+            .onItem().delayIt().by(flightDuration)
+            .chain(() -> fleetApi.dockShip(ship.getSymbol()))
+            .map(r -> r.getData().getNav());
     }
 
     @CacheInvalidateAll(cacheName = "my-ships")
