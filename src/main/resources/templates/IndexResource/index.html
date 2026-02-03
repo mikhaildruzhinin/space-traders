@@ -6,6 +6,11 @@
     </header>
     <main>
         <div class="m-1">
+
+            <span data-agent-credits>-</span>
+            <span data-agent-faction>-</span>
+            <span data-agent-hq>-</span>
+
             <button type="button" class="btn btn-primary" hx-post="/submit" hx-trigger="click">Submit</button>
 
             {!TODO: replace with server-side events!}
@@ -19,4 +24,7 @@
         </div>
     </main>
     <footer></footer>
+    {#script}
+        <script src="/events.js"></script>
+    {/script}
 {/include}

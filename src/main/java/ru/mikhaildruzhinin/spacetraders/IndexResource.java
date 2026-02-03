@@ -65,6 +65,17 @@ public class IndexResource {
     }
 
     @GET
+    @Path("/events")
+    @Produces(MediaType.SERVER_SENT_EVENTS)
+    // TODO: check out ServerSentEvent type
+    public Multi<UiEvent> events() {
+        Multi<UiEvent> agentStream = Multi.createFrom().ticks().every(Duration.ofSeconds(2))
+            .onItem().transformToUniAndConcatenate(tick -> fetchMyAgent()
+                .map(agent -> (UiEvent) UiEvent.UiAgentEvent.from(agent)));
+        return Multi.createBy().merging().streams(agentStream);
+    }
+
+    @GET
     @Path("/status")
     @Produces(MediaType.TEXT_PLAIN)
     @CacheResult(cacheName = "status")
