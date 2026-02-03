@@ -11,6 +11,7 @@ import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import org.eclipse.microprofile.rest.client.inject.RestClient;
+import org.jboss.logging.Logger;
 import ru.mikhaildruzhinin.spacetraders.generated.client.api.*;
 import ru.mikhaildruzhinin.spacetraders.generated.client.model.*;
 
@@ -18,6 +19,8 @@ import java.util.*;
 
 @Path("/")
 public class IndexResource {
+
+    private static final Logger LOG = Logger.getLogger(IndexResource.class);
 
     @RestClient
     @Inject
@@ -130,18 +133,36 @@ public class IndexResource {
     public Uni<Response> submit() {
 
         Uni<WaypointSymbol> homeSystem = fetchMyAgent().map(a -> WaypointSymbol.from(a.getHeadquarters()))
+            .invoke(w -> LOG.infof("Home system: %s", w.toString()))
             .memoize()
             .indefinitely();
 
-        Uni<Ship> ship = ensureContractAccepted().chain(() -> homeSystem.flatMap(this::ensureShipPurchased))
+        Uni<Ship> ship = ensureContractAccepted()
+            .invoke(c -> LOG.infof("Accepted contract: %s", c.toString()))
+            .chain(() -> homeSystem.flatMap(this::ensureShipPurchased))
+            .invoke(s -> LOG.infof("Purchased ship: %s", s.toString()))
             .memoize()
             .indefinitely();
 
         // TODO: verify there's only one ENGINEERED_ASTEROID
-        return ship.chain(() ->
-                homeSystem.flatMap(hs -> findWaypointsInSystem(hs.system(), WaypointType.ENGINEERED_ASTEROID, null))
-            ).map(List::getFirst)
+        Uni<Waypoint> asteroid = ship.chain(() ->
+            homeSystem.flatMap(hs -> findWaypointsInSystem(hs.system(), WaypointType.ENGINEERED_ASTEROID, null))
+        )
+            .map(List::getFirst)
+            .invoke(w -> LOG.infof("Located destination: %s", w.toString()));
+
+        return Uni.combine().all().unis(ship, asteroid).asTuple()
+            .flatMap(t -> startNavigation(t.getItem1(), t.getItem2()))
+            .map(NavigateShip200Response::getData)
+            .invoke(r -> LOG.infof("Started navigation: %s", r.toString()))
             .replaceWith(Response.noContent().build());
+    }
+
+    @CacheInvalidateAll(cacheName = "my-ships")
+    protected Uni<NavigateShip200Response> startNavigation(Ship ship, Waypoint destination) {
+        NavigateShipRequest nsr = new NavigateShipRequest();
+        nsr.setWaypointSymbol(destination.getSymbol());
+        return fleetApi.orbitShip(ship.getSymbol()).chain(() -> fleetApi.navigateShip(ship.getSymbol(), nsr));
     }
 
     private Uni<Contract> ensureContractAccepted() {
