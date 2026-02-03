@@ -128,7 +128,19 @@ public class IndexResource {
     @Path("/submit")
     @Produces(MediaType.APPLICATION_JSON)
     public Uni<Response> submit() {
-        return ensureContractAccepted().call(this::ensureShipPurchased)
+
+        Uni<WaypointSymbol> homeSystem = fetchMyAgent().map(a -> WaypointSymbol.from(a.getHeadquarters()))
+            .memoize()
+            .indefinitely();
+
+        Uni<Ship> ship = ensureContractAccepted().chain(() -> homeSystem.flatMap(this::ensureShipPurchased))
+            .memoize()
+            .indefinitely();
+
+        // TODO: verify there's only one ENGINEERED_ASTEROID
+        return ship.chain(() ->
+                homeSystem.flatMap(hs -> findWaypointsInSystem(hs.system(), WaypointType.ENGINEERED_ASTEROID, null))
+            ).map(List::getFirst)
             .replaceWith(Response.noContent().build());
     }
 
@@ -159,11 +171,8 @@ public class IndexResource {
             .map(response -> response.getData().getContract());
     }
 
-    private Uni<Ship> ensureShipPurchased() {
-        return fetchMyAgent().map(agent -> WaypointSymbol.from(agent.getHeadquarters()))
-            .flatMap(hq ->
-                findWaypointsInSystem(hq.system(), null, List.of(WaypointTraitSymbol.SHIPYARD))
-            )
+    private Uni<Ship> ensureShipPurchased(WaypointSymbol system) {
+        return findWaypointsInSystem(system.system(), null, List.of(WaypointTraitSymbol.SHIPYARD))
             .flatMap(this::getShipyards)
             .map(List::getFirst)
             .flatMap(s -> purchaseShip(s, ShipType.SHIP_MINING_DRONE));
