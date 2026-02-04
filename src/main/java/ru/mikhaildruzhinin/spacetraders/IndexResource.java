@@ -69,31 +69,32 @@ public class IndexResource {
     public Multi<UiEvent> events() {
         Duration streamUpdateFrequency = Duration.ofSeconds(2);
 
-        Multi<UiEvent> statusStream = Multi.createFrom().ticks().every(streamUpdateFrequency)
+        Multi<UiEvent> statusEventStream = Multi.createFrom().ticks().every(streamUpdateFrequency)
             .onItem().transformToUniAndConcatenate(tick ->
                 fetchStatus().map(UiEvent.UiStatusEvent::from)
             );
 
-        Multi<UiEvent> agentStream = Multi.createFrom().ticks().every(streamUpdateFrequency)
+        Multi<UiEvent> agentEventStream = Multi.createFrom().ticks().every(streamUpdateFrequency)
             .onItem().transformToUniAndConcatenate(tick ->
                 fetchMyAgent().map(UiEvent.UiAgentEvent::from)
             );
 
         // TODO: event with a current state of contracts
-        Multi<UiEvent> contractStream = Multi.createFrom().ticks().every(streamUpdateFrequency)
+        Multi<UiEvent> contractEventStream = Multi.createFrom().ticks().every(streamUpdateFrequency)
             .onItem().transformToUniAndConcatenate(tick -> fetchContracts())
             .onItem().transformToMultiAndMerge(Multi.createFrom()::iterable)
             .map(UiEvent.UiContractEvent::from);
 
-        return Multi.createBy().merging().streams(statusStream, agentStream, contractStream);
-    }
+        Multi<UiEvent> shipEventStream = Multi.createFrom().ticks().every(streamUpdateFrequency)
+            .onItem().transformToUniAndConcatenate(tick -> fetchShips())
+            .map(UiEvent.UiShipEvent::from);
 
-    @GET
-    @Path("/status")
-    @Produces(MediaType.TEXT_PLAIN)
-    @CacheResult(cacheName = "status")
-    public Uni<String> status() {
-        return fetchStatus();
+        return Multi.createBy().merging().streams(
+            statusEventStream,
+            agentEventStream,
+            contractEventStream,
+            shipEventStream
+        );
     }
 
     @CacheResult(cacheName = "status")
@@ -101,7 +102,7 @@ public class IndexResource {
         return globalApi.getStatus().map(GetStatus200Response::getStatus);
     }
 
-    @CacheResult(cacheName = "my-agent")
+    @CacheResult(cacheName = "agent")
     protected Uni<Agent> fetchMyAgent() {
         return agentsApi.getMyAgent().map(GetMyAgent200Response::getData);
     }
@@ -180,8 +181,8 @@ public class IndexResource {
         return refuel.replaceWith(Response.noContent().build());
     }
 
-    @CacheInvalidateAll(cacheName = "my-agent")
-    @CacheInvalidateAll(cacheName = "my-ships")
+    @CacheInvalidateAll(cacheName = "agent")
+    @CacheInvalidateAll(cacheName = "ships")
     protected Uni<RefuelShip200Response> refuelShip(Ship ship, ShipFuel fuel) {
         // TODO: handle unhappy paths
         RefuelShipRequest rsr = new RefuelShipRequest();
@@ -189,7 +190,7 @@ public class IndexResource {
         return fleetApi.refuelShip(ship.getSymbol(), rsr);
     }
 
-    @CacheInvalidateAll(cacheName = "my-ships")
+    @CacheInvalidateAll(cacheName = "ships")
     protected Uni<ShipNav> finishNavigation(Ship ship, ShipNav nav) {
         ShipNavRoute route = nav.getRoute();
         OffsetDateTime departureTime = route.getDepartureTime();
@@ -206,7 +207,7 @@ public class IndexResource {
             .map(r -> r.getData().getNav());
     }
 
-    @CacheInvalidateAll(cacheName = "my-ships")
+    @CacheInvalidateAll(cacheName = "ships")
     protected Uni<NavigateShip200Response> startNavigation(Ship ship, Waypoint destination) {
         NavigateShipRequest nsr = new NavigateShipRequest();
         nsr.setWaypointSymbol(destination.getSymbol());
@@ -256,8 +257,8 @@ public class IndexResource {
     }
 
     @SuppressWarnings("SameParameterValue")
-    @CacheInvalidateAll(cacheName = "my-agent")
-    @CacheInvalidateAll(cacheName = "my-ships")
+    @CacheInvalidateAll(cacheName = "agent")
+    @CacheInvalidateAll(cacheName = "ships")
     protected Uni<Ship> purchaseShip(Shipyard shipyard, ShipType type) {
         PurchaseShipRequest psr = new PurchaseShipRequest();
         psr.setShipType(type);
@@ -309,16 +310,5 @@ public class IndexResource {
                         return all;
                     });
             });
-    }
-
-    @GET
-    @Path("/ships")
-    @Produces(MediaType.APPLICATION_JSON)
-    @CacheResult(cacheName = "my-ships")
-    public Uni<TemplateInstance> ships() {
-        // TODO: add pagination
-        return fleetApi.getMyShips(1, 20)
-            .map(GetMyShips200Response::getData).
-            map(Templates::ships);
     }
 }
