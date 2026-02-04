@@ -50,8 +50,6 @@ public class IndexResource {
 
         public static native TemplateInstance agent();
 
-        public static native TemplateInstance waypoint(Waypoint waypoint);
-
         public static native TemplateInstance contracts(List<Contract> contracts);
 
         public static native TemplateInstance ships(List<Ship> ships);
@@ -101,18 +99,6 @@ public class IndexResource {
     @CacheResult(cacheName = "status")
     protected Uni<String> fetchStatus() {
         return globalApi.getStatus().map(GetStatus200Response::getStatus);
-    }
-
-    @GET
-    @Path("/starting-location")
-    @Produces(MediaType.TEXT_HTML)
-    @CacheResult(cacheName = "starting-location")
-    public Uni<TemplateInstance> startingLocation() {
-        return fetchMyAgent()
-            .map(agent -> WaypointSymbol.from(agent.getHeadquarters()))
-            .flatMap(waypoint -> systemsApi.getWaypoint(waypoint.system(), waypoint.waypoint()))
-            .map(GetWaypoint200Response::getData)
-            .map(Templates::waypoint);
     }
 
     @CacheResult(cacheName = "my-agent")
