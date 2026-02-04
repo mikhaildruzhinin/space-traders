@@ -18,6 +18,7 @@ import ru.mikhaildruzhinin.spacetraders.generated.client.model.*;
 import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.util.*;
+import java.util.stream.Stream;
 
 @Path("/")
 public class IndexResource {
@@ -69,10 +70,18 @@ public class IndexResource {
     @Produces(MediaType.SERVER_SENT_EVENTS)
     // TODO: check out ServerSentEvent type
     public Multi<UiEvent> events() {
-        Multi<UiEvent> agentStream = Multi.createFrom().ticks().every(Duration.ofSeconds(2))
-            .onItem().transformToUniAndConcatenate(tick -> fetchMyAgent()
-                .map(agent -> (UiEvent) UiEvent.UiAgentEvent.from(agent)));
-        return Multi.createBy().merging().streams(agentStream);
+        Duration streamUpdateFrequency = Duration.ofSeconds(2);
+        Multi<UiEvent> agentStream = Multi.createFrom().ticks().every(streamUpdateFrequency)
+            .onItem().transformToUniAndConcatenate(tick ->
+                fetchMyAgent().map(UiEvent.UiAgentEvent::from)
+            );
+
+        Multi<UiEvent> contractStream = Multi.createFrom().ticks().every(streamUpdateFrequency)
+            .onItem().transformToUniAndConcatenate(tick -> fetchContracts())
+            .onItem().transformToMultiAndMerge(Multi.createFrom()::iterable)
+            .map(UiEvent.UiContractEvent::from);
+
+        return Multi.createBy().merging().streams(agentStream, contractStream);
     }
 
     @GET
