@@ -18,7 +18,6 @@ import ru.mikhaildruzhinin.spacetraders.generated.client.model.*;
 import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.util.*;
-import java.util.stream.Stream;
 
 @Path("/")
 public class IndexResource {
@@ -49,7 +48,7 @@ public class IndexResource {
     public static class Templates {
         public static native TemplateInstance index();
 
-        public static native TemplateInstance agent(Agent agent);
+        public static native TemplateInstance agent();
 
         public static native TemplateInstance waypoint(Waypoint waypoint);
 
@@ -91,13 +90,6 @@ public class IndexResource {
     public Uni<String> status() {
         return globalApi.getStatus()
             .map(GetStatus200Response::getStatus);
-    }
-
-    @GET
-    @Path("/agent")
-    @Produces(MediaType.TEXT_HTML)
-    public Uni<TemplateInstance> agent() {
-        return fetchMyAgent().map(Templates::agent);
     }
 
     @GET
