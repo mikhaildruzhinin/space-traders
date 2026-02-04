@@ -70,17 +70,24 @@ public class IndexResource {
     // TODO: check out ServerSentEvent type
     public Multi<UiEvent> events() {
         Duration streamUpdateFrequency = Duration.ofSeconds(2);
+
+        Multi<UiEvent> statusStream = Multi.createFrom().ticks().every(streamUpdateFrequency)
+            .onItem().transformToUniAndConcatenate(tick ->
+                fetchStatus().map(UiEvent.UiStatusEvent::from)
+            );
+
         Multi<UiEvent> agentStream = Multi.createFrom().ticks().every(streamUpdateFrequency)
             .onItem().transformToUniAndConcatenate(tick ->
                 fetchMyAgent().map(UiEvent.UiAgentEvent::from)
             );
 
+        // TODO: event with a current state of contracts
         Multi<UiEvent> contractStream = Multi.createFrom().ticks().every(streamUpdateFrequency)
             .onItem().transformToUniAndConcatenate(tick -> fetchContracts())
             .onItem().transformToMultiAndMerge(Multi.createFrom()::iterable)
             .map(UiEvent.UiContractEvent::from);
 
-        return Multi.createBy().merging().streams(agentStream, contractStream);
+        return Multi.createBy().merging().streams(statusStream, agentStream, contractStream);
     }
 
     @GET
@@ -88,8 +95,12 @@ public class IndexResource {
     @Produces(MediaType.TEXT_PLAIN)
     @CacheResult(cacheName = "status")
     public Uni<String> status() {
-        return globalApi.getStatus()
-            .map(GetStatus200Response::getStatus);
+        return fetchStatus();
+    }
+
+    @CacheResult(cacheName = "status")
+    protected Uni<String> fetchStatus() {
+        return globalApi.getStatus().map(GetStatus200Response::getStatus);
     }
 
     @GET

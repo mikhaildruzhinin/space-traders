@@ -10,11 +10,24 @@ import java.util.List;
 
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.PROPERTY, property = "type")
 @JsonSubTypes({
+    @JsonSubTypes.Type(value = UiEvent.UiStatusEvent.class, name = "status"),
     @JsonSubTypes.Type(value = UiEvent.UiAgentEvent.class, name = "agent"),
     @JsonSubTypes.Type(value = UiEvent.UiContractEvent.class, name = "contract"),
     @JsonSubTypes.Type(value = UiEvent.UiShipEvent.class, name = "ship")
 })
-public sealed interface UiEvent permits UiEvent.UiAgentEvent, UiEvent.UiContractEvent, UiEvent.UiShipEvent {
+public sealed interface UiEvent
+    permits UiEvent.UiStatusEvent, UiEvent.UiAgentEvent, UiEvent.UiContractEvent, UiEvent.UiShipEvent {
+
+    record UiStatusEvent(UiStatusEventData data) implements UiEvent {
+
+        record UiStatusEventData(String status) {}
+
+        public static UiStatusEvent from(String status) {
+            return new UiStatusEvent(
+                new UiStatusEventData(status)
+            );
+        }
+    }
 
     record UiAgentEvent(UiAgentEventData data) implements UiEvent {
 

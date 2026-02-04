@@ -8,8 +8,18 @@ const setText = (selector, value) => {
 es.onmessage = (e) => {
     try {
         const msg = JSON.parse(e.data);
+
+        if (msg.type === "status") {
+            const status = msg.data;
+            if (!status) {
+                console.warn("Status data is missing")
+            }
+
+            setText("[data-status]", status.status);
+        }
+
         if (msg.type === "agent") {
-            const agent = msg.agent ?? msg.data;
+            const agent = msg.data;
             if (!agent) {
                 console.warn("Agent data is missing")
             }
@@ -21,6 +31,26 @@ es.onmessage = (e) => {
             setText("[data-agent-faction]", agent.faction);
             setText("[data-agent-ship-count]", agent.shipCount);
         }
+
+        if (msg.type === "contract") {
+            const contract = msg.data;
+            if (!contract) {
+                console.warn("Contract data is missing")
+            }
+
+            setText("[data-contract-id]", contract.id);
+            setText("[data-contract-id]", contract.id);
+            setText("[data-contract-id]", contract.id);
+            setText("[data-contract-id]", contract.id);
+            setText("[data-contract-id]", contract.id);
+            setText("[data-contract-id]", contract.id);
+            setText("[data-contract-id]", contract.id);
+            setText("[data-contract-id]", contract.id);
+            setText("[data-contract-id]", contract.id);
+            setText("[data-contract-id]", contract.id);
+            setText("[data-contract-id]", contract.id);
+        }
+
     } catch (err) {
         console.error("Bad SSE payload", err, e.data);
     }

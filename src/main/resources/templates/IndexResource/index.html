@@ -1,7 +1,7 @@
 {#include base.html}
     <header>
         <div class="m-1">
-            <p class="mb-2" hx-get="/status" hx-trigger="every 2s">Loading status...</p>
+            <p class="mb-2"><span data-status>Loading status...</span></p>
         </div>
     </header>
     <main>
@@ -10,10 +10,8 @@
 
             {#include IndexResource/agent.html}Loading agent...{/include}
 
-            {!TODO: replace with server-side events!}
             <div id="contracts" class="mb-2" hx-get="/contracts" hx-trigger="every 2s">Loading contracts...</div>
 
-            {!TODO: replace with server-side events!}
             <div id="ships" class="mb-2" hx-get="/ships" hx-trigger="every 2s">Loading ships...</div>
         </div>
     </main>
