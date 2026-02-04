@@ -3,6 +3,10 @@ package ru.mikhaildruzhinin.spacetraders;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import ru.mikhaildruzhinin.spacetraders.generated.client.model.Agent;
+import ru.mikhaildruzhinin.spacetraders.generated.client.model.Contract;
+
+import java.time.Instant;
+import java.util.List;
 
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.PROPERTY, property = "type")
 @JsonSubTypes({
@@ -20,30 +24,77 @@ public sealed interface UiEvent permits UiEvent.UiAgentEvent, UiEvent.UiContract
             String headquarters,
             Long credits,
             String faction,
-            int shipsCount) {
+            int shipsCount
+        ) {}
 
-            public static UiAgentEventData from(Agent agent) {
-                return new UiAgentEventData(
+        public static UiAgentEvent from(Agent agent) {
+            return new UiAgentEvent(
+                new UiAgentEventData(
                     agent.getAccountId(),
                     agent.getSymbol(),
                     agent.getHeadquarters(),
                     agent.getCredits(),
                     agent.getStartingFaction(),
                     agent.getShipCount()
-                );
-            }
+                )
+            );
         }
-
-        public static UiAgentEvent from(Agent agent) {
-            return new UiAgentEvent(UiAgentEventData.from(agent));
-        }
-
     }
 
-    record UiContractEvent(Data data) implements UiEvent {}
+    record UiContractEvent(UiContractEventData data) implements UiEvent {
+
+        record UiContractEventData(
+            String id,
+            String factionSymbol,
+            Contract.TypeEnum type,
+            Instant deadline,
+            Integer paymentOnAccepted,
+            Integer paymentOnFulfilled,
+            List<UiContractEventDelivery> delivery,
+            Boolean isAccepted,
+            Boolean isFulfilled,
+            Instant expiration,
+            Instant deadlineToAccept
+        ) {}
+
+        record UiContractEventDelivery(
+            String tradeSymbol,
+            String destinationSymbol,
+            Integer unitsRequired,
+            Integer unitsFulfilled
+        ) {}
+
+        public static UiContractEvent from(Contract contract) {
+
+            List<UiContractEventDelivery> delivery = contract.getTerms()
+                .getDeliver()
+                .stream()
+                .map(d ->
+                    new UiContractEventDelivery(
+                        d.getTradeSymbol(),
+                        d.getDestinationSymbol(),
+                        d.getUnitsRequired(),
+                        d.getUnitsFulfilled()
+                    )
+                ).toList();
+
+            return new UiContractEvent(
+                new UiContractEventData(
+                    contract.getId(),
+                    contract.getFactionSymbol(),
+                    contract.getType(),
+                    contract.getTerms().getDeadline().toInstant(),
+                    contract.getTerms().getPayment().getOnAccepted(),
+                    contract.getTerms().getPayment().getOnFulfilled(),
+                    delivery,
+                    contract.getAccepted(),
+                    contract.getFulfilled(),
+                    contract.getExpiration().toInstant(),
+                    contract.getDeadlineToAccept().toInstant()
+                )
+            );
+        }
+    }
 
     record UiShipEvent() implements UiEvent {}
-
-    record Data() {}
-
 }
