@@ -1,22 +1,27 @@
 {#include base.html}
     <header>
         <div class="m-1">
-            <p class="mb-2"><span data-status>Loading status...</span></p>
+            <p class="mb-2"
+               hx-ext="sse"
+               sse-connect="/events"
+               sse-swap="status">
+                Loading status...
+            </p>
         </div>
     </header>
     <main>
         <div class="m-1">
             <button type="button" class="btn btn-primary" hx-post="/submit" hx-trigger="click">Submit</button>
 
-            {#include IndexResource/agent.html}Loading agent...{/include}
+            {!{#include IndexResource/agent.html}Loading agent...{/include}!}
 
-            <div id="contracts" class="mb-2" hx-get="/contracts" hx-trigger="every 2s">Loading contracts...</div>
+            {!<div id="contracts" class="mb-2" hx-get="/contracts" hx-trigger="every 2s">Loading contracts...</div>!}
 
-            <div id="ships" class="mb-2" hx-get="/ships" hx-trigger="every 2s">Loading ships...</div>
+            {!<div id="ships" class="mb-2" hx-get="/ships" hx-trigger="every 2s">Loading ships...</div>!}
         </div>
     </main>
     <footer></footer>
     {#script}
-        <script src="/events.js"></script>
+        {!<script src="/events.js"></script>!}
     {/script}
 {/include}

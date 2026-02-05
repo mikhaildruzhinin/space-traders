@@ -10,6 +10,8 @@ import jakarta.inject.Inject;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
+import jakarta.ws.rs.sse.OutboundSseEvent;
+import jakarta.ws.rs.sse.Sse;
 import org.eclipse.microprofile.rest.client.inject.RestClient;
 import org.jboss.logging.Logger;
 import ru.mikhaildruzhinin.spacetraders.generated.client.api.*;
@@ -44,6 +46,9 @@ public class IndexResource {
     @Inject
     FleetApi fleetApi;
 
+    @Inject
+    Sse sse;
+
     @CheckedTemplate
     public static class Templates {
         public static native TemplateInstance index();
@@ -66,34 +71,35 @@ public class IndexResource {
     @Path("/events")
     @Produces(MediaType.SERVER_SENT_EVENTS)
     // TODO: check out ServerSentEvent type
-    public Multi<UiEvent> events() {
+    public Multi<OutboundSseEvent> events() {
         Duration streamUpdateFrequency = Duration.ofSeconds(2);
 
-        Multi<UiEvent> statusEventStream = Multi.createFrom().ticks().every(streamUpdateFrequency)
-            .onItem().transformToUniAndConcatenate(tick ->
-                fetchStatus().map(UiEvent.UiStatusEvent::from)
-            );
+        Multi<OutboundSseEvent> statusEventStream = Multi.createFrom().ticks().every(streamUpdateFrequency)
+            .onItem().transformToUniAndConcatenate(tick -> fetchStatus())
+            .map(status -> sse.newEventBuilder().name("status").data(status).build());
 
-        Multi<UiEvent> agentEventStream = Multi.createFrom().ticks().every(streamUpdateFrequency)
-            .onItem().transformToUniAndConcatenate(tick ->
-                fetchMyAgent().map(UiEvent.UiAgentEvent::from)
-            );
-
-        // TODO: event with a current state of contracts
-        Multi<UiEvent> contractEventStream = Multi.createFrom().ticks().every(streamUpdateFrequency)
-            .onItem().transformToUniAndConcatenate(tick -> fetchContracts())
-            .onItem().transformToMultiAndMerge(Multi.createFrom()::iterable)
-            .map(UiEvent.UiContractEvent::from);
-
-        Multi<UiEvent> shipEventStream = Multi.createFrom().ticks().every(streamUpdateFrequency)
-            .onItem().transformToUniAndConcatenate(tick -> fetchShips())
-            .map(UiEvent.UiShipEvent::from);
+//        Multi<OutboundSseEvent> agentEventStream = Multi.createFrom().ticks().every(streamUpdateFrequency)
+//            .onItem().transformToUniAndConcatenate(tick ->
+//                fetchMyAgent().map(UiEvent.UiAgentEvent::from)
+//            ).map(e -> sse.newEventBuilder().name("agent").data(e).build());
+//
+//        // TODO: event with a current state of contracts
+//        Multi<OutboundSseEvent> contractEventStream = Multi.createFrom().ticks().every(streamUpdateFrequency)
+//            .onItem().transformToUniAndConcatenate(tick -> fetchContracts())
+//            .onItem().transformToMultiAndMerge(Multi.createFrom()::iterable)
+//            .map(UiEvent.UiContractEvent::from)
+//            .map(e -> sse.newEventBuilder().name("contracts").data(e).build());;
+//
+//        Multi<OutboundSseEvent> shipEventStream = Multi.createFrom().ticks().every(streamUpdateFrequency)
+//            .onItem().transformToUniAndConcatenate(tick -> fetchShips())
+//            .map(UiEvent.UiShipEvent::from)
+//            .map(e -> sse.newEventBuilder().name("ships").data(e).build());
 
         return Multi.createBy().merging().streams(
-            statusEventStream,
-            agentEventStream,
-            contractEventStream,
-            shipEventStream
+            statusEventStream
+//            agentEventStream,
+//            contractEventStream,
+//            shipEventStream
         );
     }
 
