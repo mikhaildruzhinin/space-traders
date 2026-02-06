@@ -104,13 +104,6 @@ public class IndexResource {
         );
     }
 
-    @GET
-    @Path("/agent")
-    @Produces(MediaType.TEXT_HTML)
-    public Uni<TemplateInstance> agent() {
-        return fetchMyAgent().map(Templates::agent);
-    }
-
     @CacheResult(cacheName = "status")
     protected Uni<String> fetchStatus() {
         return globalApi.getStatus().map(GetStatus200Response::getStatus);
@@ -119,14 +112,6 @@ public class IndexResource {
     @CacheResult(cacheName = "agent")
     protected Uni<Agent> fetchMyAgent() {
         return agentsApi.getMyAgent().map(GetMyAgent200Response::getData);
-    }
-
-    @GET
-    @Path("/contracts")
-    @Produces(MediaType.TEXT_HTML)
-    public Uni<TemplateInstance> contracts() {
-        // TODO: persist contract
-        return fetchContracts().map(Templates::contracts);
     }
 
     @CacheInvalidateAll(cacheName = "contracts")
