@@ -173,20 +173,33 @@ public class IndexResource {
             .flatMap(t -> finishNavigation(t.getItem1(), t.getItem2().getNav()))
             .invoke(r -> LOG.infof("Finished navigation: %s", r.toString()));
 
-        Uni<RefuelShip200ResponseData> refuel = navigationFinish.chain(() -> Uni.combine().all().unis(ship, navigationStart).asTuple()
-            .flatMap(t -> refuelShip(t.getItem1(), t.getItem2().getFuel()))
-            .invoke(r -> LOG.infof("Ship refueled: %s", r.toString()))
-            .map(RefuelShip200Response::getData));
-        return refuel.replaceWith(Response.noContent().build());
+        Uni<RefuelShip200ResponseData> refueling = navigationFinish.chain(() ->
+            Uni.combine().all().unis(ship, navigationStart).asTuple()
+                .flatMap(t -> refuelShip(t.getItem1(), t.getItem2().getFuel()))
+                .invoke(r -> LOG.infof("Ship refueled: %s", r.toString()))
+        );
+
+        Uni<ExtractResources201ResponseData> extraction = refueling.chain(() -> ship.flatMap(this::extract))
+            .invoke(r -> LOG.infof("Ores and minerals extracted: %s", r.toString()));
+
+        return extraction.replaceWith(Response.noContent().build());
+    }
+
+    @CacheInvalidateAll(cacheName = "ships")
+    protected Uni<ExtractResources201ResponseData> extract(Ship ship) {
+        // TODO: check if ship is in orbit first
+        return fleetApi.orbitShip(ship.getSymbol())
+            .chain(() -> fleetApi.extractResources(ship.getSymbol()))
+            .map(ExtractResources201Response::getData);
     }
 
     @CacheInvalidateAll(cacheName = "agent")
     @CacheInvalidateAll(cacheName = "ships")
-    protected Uni<RefuelShip200Response> refuelShip(Ship ship, ShipFuel fuel) {
+    protected Uni<RefuelShip200ResponseData> refuelShip(Ship ship, ShipFuel fuel) {
         // TODO: handle unhappy paths
         RefuelShipRequest rsr = new RefuelShipRequest();
         rsr.setUnits(fuel.getConsumed().getAmount());
-        return fleetApi.refuelShip(ship.getSymbol(), rsr);
+        return fleetApi.refuelShip(ship.getSymbol(), rsr).map(RefuelShip200Response::getData);
     }
 
     @CacheInvalidateAll(cacheName = "ships")
@@ -234,6 +247,7 @@ public class IndexResource {
         });
     }
 
+    @CacheInvalidateAll(cacheName = "agent")
     @CacheInvalidateAll(cacheName = "contracts")
     protected Uni<Contract> acceptContract(String contractId) {
         return contractsApi.acceptContract(contractId)
