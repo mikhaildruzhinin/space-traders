@@ -53,7 +53,7 @@ public class IndexResource {
     public static class Templates {
         public static native TemplateInstance index();
 
-        public static native TemplateInstance agent();
+        public static native TemplateInstance agent(Agent agent);
 
         public static native TemplateInstance contracts(List<Contract> contracts);
 
@@ -78,10 +78,10 @@ public class IndexResource {
             .onItem().transformToUniAndConcatenate(tick -> fetchStatus())
             .map(status -> sse.newEventBuilder().name("status").data(status).build());
 
-//        Multi<OutboundSseEvent> agentEventStream = Multi.createFrom().ticks().every(streamUpdateFrequency)
-//            .onItem().transformToUniAndConcatenate(tick ->
-//                fetchMyAgent().map(UiEvent.UiAgentEvent::from)
-//            ).map(e -> sse.newEventBuilder().name("agent").data(e).build());
+        Multi<OutboundSseEvent> agentEventStream = Multi.createFrom().ticks().every(streamUpdateFrequency)
+            .onItem().transformToUniAndConcatenate(tick ->
+                fetchMyAgent().map(Templates::agent).flatMap(t -> Uni.createFrom().completionStage(t.renderAsync()))
+            ).map(e -> sse.newEventBuilder().name("agent").data(e).build());
 //
 //        // TODO: event with a current state of contracts
 //        Multi<OutboundSseEvent> contractEventStream = Multi.createFrom().ticks().every(streamUpdateFrequency)
@@ -96,11 +96,18 @@ public class IndexResource {
 //            .map(e -> sse.newEventBuilder().name("ships").data(e).build());
 
         return Multi.createBy().merging().streams(
-            statusEventStream
-//            agentEventStream,
+            statusEventStream,
+            agentEventStream
 //            contractEventStream,
 //            shipEventStream
         );
+    }
+
+    @GET
+    @Path("/agent")
+    @Produces(MediaType.TEXT_HTML)
+    public Uni<TemplateInstance> agent() {
+        return fetchMyAgent().map(Templates::agent);
     }
 
     @CacheResult(cacheName = "status")

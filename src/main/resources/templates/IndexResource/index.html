@@ -13,7 +13,7 @@
         <div class="m-1">
             <button type="button" class="btn btn-primary" hx-post="/submit" hx-trigger="click">Submit</button>
 
-            {!{#include IndexResource/agent.html}Loading agent...{/include}!}
+            <div id="agent" class="mb-2" hx-ext="sse" sse-connect="/events" sse-swap="agent">Loading agent...</div>
 
             {!<div id="contracts" class="mb-2" hx-get="/contracts" hx-trigger="every 2s">Loading contracts...</div>!}
 
