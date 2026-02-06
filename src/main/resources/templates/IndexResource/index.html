@@ -12,16 +12,28 @@
     <main>
         <div class="m-1">
             <button type="button" class="btn btn-primary" hx-post="/submit" hx-trigger="click">Submit</button>
-
-            <div id="agent" class="mb-2" hx-ext="sse" sse-connect="/events" sse-swap="agent">Loading agent...</div>
-
-            {!<div id="contracts" class="mb-2" hx-get="/contracts" hx-trigger="every 2s">Loading contracts...</div>!}
-
-            {!<div id="ships" class="mb-2" hx-get="/ships" hx-trigger="every 2s">Loading ships...</div>!}
+            <div id="agent"
+                 class="mb-2"
+                 hx-ext="sse"
+                 sse-connect="/events"
+                 sse-swap="agent">
+                Loading agent...
+            </div>
+            <div id="contracts"
+                 class="mb-2"
+                 hx-ext="sse"
+                 sse-connect="/events"
+                 sse-swap="contracts">
+                Loading contracts...
+            </div>
+            <div id="ships"
+                 class="mb-2"
+                 hx-ext="sse"
+                 sse-connect="/events"
+                 sse-swap="ships">
+                Loading ships...
+            </div>
         </div>
     </main>
     <footer></footer>
-    {#script}
-        {!<script src="/events.js"></script>!}
-    {/script}
 {/include}

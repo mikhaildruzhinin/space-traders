@@ -80,26 +80,27 @@ public class IndexResource {
 
         Multi<OutboundSseEvent> agentEventStream = Multi.createFrom().ticks().every(streamUpdateFrequency)
             .onItem().transformToUniAndConcatenate(tick ->
-                fetchMyAgent().map(Templates::agent).flatMap(t -> Uni.createFrom().completionStage(t.renderAsync()))
+                fetchMyAgent().map(Templates::agent)
+                    .flatMap(t -> Uni.createFrom().completionStage(t.renderAsync()))
             ).map(e -> sse.newEventBuilder().name("agent").data(e).build());
-//
-//        // TODO: event with a current state of contracts
-//        Multi<OutboundSseEvent> contractEventStream = Multi.createFrom().ticks().every(streamUpdateFrequency)
-//            .onItem().transformToUniAndConcatenate(tick -> fetchContracts())
-//            .onItem().transformToMultiAndMerge(Multi.createFrom()::iterable)
-//            .map(UiEvent.UiContractEvent::from)
-//            .map(e -> sse.newEventBuilder().name("contracts").data(e).build());;
-//
-//        Multi<OutboundSseEvent> shipEventStream = Multi.createFrom().ticks().every(streamUpdateFrequency)
-//            .onItem().transformToUniAndConcatenate(tick -> fetchShips())
-//            .map(UiEvent.UiShipEvent::from)
-//            .map(e -> sse.newEventBuilder().name("ships").data(e).build());
+
+        Multi<OutboundSseEvent> contractEventStream = Multi.createFrom().ticks().every(streamUpdateFrequency)
+            .onItem().transformToUniAndConcatenate(tick ->
+                fetchContracts().map(Templates::contracts)
+                    .flatMap(t -> Uni.createFrom().completionStage(t.renderAsync()))
+            ).map(e -> sse.newEventBuilder().name("contracts").data(e).build());
+
+        Multi<OutboundSseEvent> shipEventStream = Multi.createFrom().ticks().every(streamUpdateFrequency)
+            .onItem().transformToUniAndConcatenate(tick ->
+                fetchShips().map(Templates::ships)
+                    .flatMap(t -> Uni.createFrom().completionStage(t.renderAsync()))
+            ).map(e -> sse.newEventBuilder().name("ships").data(e).build());
 
         return Multi.createBy().merging().streams(
             statusEventStream,
-            agentEventStream
-//            contractEventStream,
-//            shipEventStream
+            agentEventStream,
+            contractEventStream,
+            shipEventStream
         );
     }
 
