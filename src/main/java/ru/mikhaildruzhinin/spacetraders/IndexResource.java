@@ -179,18 +179,28 @@ public class IndexResource {
                 .invoke(r -> LOG.infof("Ship refueled: %s", r.toString()))
         );
 
-        Uni<ExtractResources201ResponseData> extraction = refueling.chain(() -> ship.flatMap(this::extract))
-            .invoke(r -> LOG.infof("Ores and minerals extracted: %s", r.toString()));
-
+        Uni<ExtractResources201ResponseData> extraction = refueling.chain(() -> ship.flatMap(this::ensureExtraction));
         return extraction.replaceWith(Response.noContent().build());
     }
 
-    @CacheInvalidateAll(cacheName = "ships")
-    protected Uni<ExtractResources201ResponseData> extract(Ship ship) {
+    protected Uni<ExtractResources201ResponseData> ensureExtraction(Ship ship) {
         // TODO: check if ship is in orbit first
         return fleetApi.orbitShip(ship.getSymbol())
-            .chain(() -> fleetApi.extractResources(ship.getSymbol()))
-            .map(ExtractResources201Response::getData);
+            .chain(() -> extractResources(ship))
+            .invoke(r -> LOG.infof("Resources extracted: %s", r.toString()))
+            .call(r ->
+                Uni.createFrom().voidItem().onItem().delayIt().by(
+                    Duration.ofSeconds(r.getCooldown().getRemainingSeconds())
+                )
+            ).repeat().until(r -> {
+                ShipCargo cargo = r.getCargo();
+                return cargo.getUnits() >= cargo.getCapacity();
+            }).select().last().toUni();
+    }
+
+    @CacheInvalidateAll(cacheName = "ships")
+    protected Uni<ExtractResources201ResponseData> extractResources(Ship ship) {
+        return fleetApi.extractResources(ship.getSymbol()).map(ExtractResources201Response::getData);
     }
 
     @CacheInvalidateAll(cacheName = "agent")
@@ -221,6 +231,18 @@ public class IndexResource {
 
     @CacheInvalidateAll(cacheName = "ships")
     protected Uni<NavigateShip200Response> startNavigation(Ship ship, Waypoint destination) {
+
+        // TODO: handle events
+        // class NavigateShip200ResponseData {
+        //     ...
+        //     events: [class ShipConditionEvent {
+        //         symbol: THERMAL_STRESS
+        //         component: FRAME
+        //         name: Thermal Stress
+        //         description: Experiencing extreme temperature fluctuations during navigation induced thermal stress on the ship's frame. Although structural integrity remains uncompromised, prolonged exposure may lead to material fatigue.
+        //     }]
+        // }
+
         NavigateShipRequest nsr = new NavigateShipRequest();
         nsr.setWaypointSymbol(destination.getSymbol());
         return fleetApi.orbitShip(ship.getSymbol()).chain(() -> fleetApi.navigateShip(ship.getSymbol(), nsr));
