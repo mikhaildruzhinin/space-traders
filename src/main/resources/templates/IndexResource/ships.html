@@ -49,12 +49,11 @@
             </td>
             <td>
                 capacity:&nbsp;{ship.getCargo().getCapacity()}<br>
-                units:&nbsp;{ship.getCargo().getUnits()}<br>
-                <ul>
-                    {#for item in ship.getCargo().getInventory()}
-                        <li>{item}</li>
-                    {/for}
-                </ul>
+                <br>
+                {#for item in ship.getCargo().getInventory()}
+                    {item.getName()}:&nbsp;{item.getUnits()}<br>
+                {/for}
+                <b>total:&nbsp;{ship.getCargo().getUnits()}</b>
             </td>
             <td>
                 current:&nbsp;{ship.getFuel().getCurrent}<br>
