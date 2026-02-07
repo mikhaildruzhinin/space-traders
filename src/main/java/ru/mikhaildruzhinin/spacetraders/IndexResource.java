@@ -75,22 +75,30 @@ public class IndexResource {
         Duration streamUpdateFrequency = Duration.ofSeconds(2);
 
         Multi<OutboundSseEvent> statusEventStream = Multi.createFrom().ticks().every(streamUpdateFrequency)
+            .onOverflow()
+            .drop()
             .onItem().transformToUniAndConcatenate(tick -> fetchStatus())
             .map(status -> sse.newEventBuilder().name("status").data(status).build());
 
         Multi<OutboundSseEvent> agentEventStream = Multi.createFrom().ticks().every(streamUpdateFrequency)
+            .onOverflow()
+            .drop()
             .onItem().transformToUniAndConcatenate(tick ->
                 fetchMyAgent().map(Templates::agent)
                     .flatMap(t -> Uni.createFrom().completionStage(t.renderAsync()))
             ).map(e -> sse.newEventBuilder().name("agent").data(e).build());
 
         Multi<OutboundSseEvent> contractEventStream = Multi.createFrom().ticks().every(streamUpdateFrequency)
+            .onOverflow()
+            .drop()
             .onItem().transformToUniAndConcatenate(tick ->
                 fetchContracts().map(Templates::contracts)
                     .flatMap(t -> Uni.createFrom().completionStage(t.renderAsync()))
             ).map(e -> sse.newEventBuilder().name("contracts").data(e).build());
 
         Multi<OutboundSseEvent> shipEventStream = Multi.createFrom().ticks().every(streamUpdateFrequency)
+            .onOverflow()
+            .drop()
             .onItem().transformToUniAndConcatenate(tick ->
                 fetchShips().map(Templates::ships)
                     .flatMap(t -> Uni.createFrom().completionStage(t.renderAsync()))
