@@ -181,10 +181,10 @@ public class IndexResource {
             .indefinitely(); // TODO: research .memoize.until(...)
 
         // Reuse cached ship symbol ONLY!
-        Uni<String> shipSymbol = contractId
+        Uni<ShipSymbol> shipSymbol = contractId
             .chain(() -> homeSystem.flatMap(this::ensureShipPurchased))
             .invoke(s -> LOG.infof("Purchased ship: %s", s.toString()))
-            .map(Ship::getSymbol)
+            .map(ShipSymbol::from)
             .memoize()
             .indefinitely();
 
@@ -196,19 +196,19 @@ public class IndexResource {
             .map(List::getFirst)
             .invoke(w -> LOG.infof("Located destination: %s", w.toString()));
 
-        Uni<NavigateShip200ResponseData> navigationStart = Uni.combine().all().unis(fetchShip(shipSymbol), asteroid).asTuple()
+        Uni<NavigateShip200ResponseData> navigationStart = Uni.combine().all().unis(shipSymbol, asteroid).asTuple()
             .flatMap(t -> startNavigation(t.getItem1(), t.getItem2()))
             .map(NavigateShip200Response::getData)
             .invoke(r -> LOG.infof("Started navigation: %s", r.toString()))
             .memoize()
             .indefinitely();
 
-        Uni<ShipNav> navigationFinish = Uni.combine().all().unis(fetchShip(shipSymbol), navigationStart).asTuple()
+        Uni<ShipNav> navigationFinish = Uni.combine().all().unis(shipSymbol, navigationStart).asTuple()
             .flatMap(t -> finishNavigation(t.getItem1(), t.getItem2().getNav()))
             .invoke(s -> LOG.infof("Finished navigation: %s", s.toString()));
 
         Uni<RefuelShip200ResponseData> refueling = navigationFinish.chain(() ->
-            Uni.combine().all().unis(fetchShip(shipSymbol), navigationStart).asTuple()
+            Uni.combine().all().unis(shipSymbol, navigationStart).asTuple()
                 .flatMap(t -> refuelShip(t.getItem1(), t.getItem2().getFuel()))
                 .invoke(r -> LOG.infof("Ship refueled: %s", r.toString()))
         );
@@ -225,7 +225,7 @@ public class IndexResource {
             .invoke(r -> LOG.infof("Resources: %s", r.toString()));
 
         Uni<ExtractResources201ResponseData> extraction = refueling.chain(() ->
-            fetchShip(shipSymbol).flatMap(this::ensureExtraction)
+            shipSymbol.flatMap(this::ensureExtraction)
         );
 
         Uni<Market> market = Uni.createFrom().voidItem().chain(() ->
@@ -234,7 +234,7 @@ public class IndexResource {
             .invoke(m -> LOG.infof("Market: %s", m.toString()))
         );
 
-        Uni<DockShip200ResponseData> docked = shipSymbol.flatMap(s -> fleetApi.dockShip(s))
+        Uni<DockShip200ResponseData> docked = shipSymbol.flatMap(s -> fleetApi.dockShip(s.symbol()))
             .map(DockShip200Response::getData);
 
         Uni<List<PurchaseCargo201ResponseData>> cargoSold = docked.chain(() -> Uni.combine()
@@ -268,12 +268,12 @@ public class IndexResource {
             .map(SellCargo201Response::getData);
     }
 
-    private Uni<Ship> fetchShip(Uni<String> shipSymbol) {
-        return shipSymbol.flatMap(s -> fleetApi.getMyShip(s))
+    private Uni<Ship> fetchShip(Uni<ShipSymbol> shipSymbol) {
+        return shipSymbol.flatMap(s -> fleetApi.getMyShip(s.symbol()))
             .map(GetMyShip200Response::getData);
     }
 
-    protected Uni<ExtractResources201ResponseData> ensureExtraction(Ship ship) {
+    protected Uni<ExtractResources201ResponseData> ensureExtraction(ShipSymbol ship) {
         // TODO: check if ship is in orbit first
         // TODO: sell immediately if not in requiredResources
         return fleetApi.orbitShip(ship.getSymbol())
@@ -291,13 +291,13 @@ public class IndexResource {
     }
 
     @CacheInvalidateAll(cacheName = "ships")
-    protected Uni<ExtractResources201ResponseData> extractResources(Ship ship) {
+    protected Uni<ExtractResources201ResponseData> extractResources(ShipSymbol ship) {
         return fleetApi.extractResources(ship.getSymbol()).map(ExtractResources201Response::getData);
     }
 
     @CacheInvalidateAll(cacheName = "agent")
     @CacheInvalidateAll(cacheName = "ships")
-    protected Uni<RefuelShip200ResponseData> refuelShip(Ship ship, ShipFuel fuel) {
+    protected Uni<RefuelShip200ResponseData> refuelShip(ShipSymbol ship, ShipFuel fuel) {
         // TODO: handle unhappy paths
         RefuelShipRequest rsr = new RefuelShipRequest();
         rsr.setUnits(fuel.getConsumed().getAmount());
@@ -305,7 +305,7 @@ public class IndexResource {
     }
 
     @CacheInvalidateAll(cacheName = "ships")
-    protected Uni<ShipNav> finishNavigation(Ship ship, ShipNav nav) {
+    protected Uni<ShipNav> finishNavigation(ShipSymbol ship, ShipNav nav) {
         ShipNavRoute route = nav.getRoute();
         OffsetDateTime departureTime = route.getDepartureTime();
         OffsetDateTime arrivalTime = route.getArrival();
@@ -322,7 +322,7 @@ public class IndexResource {
     }
 
     @CacheInvalidateAll(cacheName = "ships")
-    protected Uni<NavigateShip200Response> startNavigation(Ship ship, Waypoint destination) {
+    protected Uni<NavigateShip200Response> startNavigation(ShipSymbol ship, Waypoint destination) {
 
         // TODO: handle events
         // class NavigateShip200ResponseData {
