@@ -6,6 +6,7 @@ import io.quarkus.qute.CheckedTemplate;
 import io.quarkus.qute.TemplateInstance;
 import io.smallrye.mutiny.Multi;
 import io.smallrye.mutiny.Uni;
+import io.smallrye.mutiny.tuples.Tuple2;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
@@ -20,6 +21,7 @@ import ru.mikhaildruzhinin.spacetraders.generated.client.model.*;
 import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Path("/")
 public class IndexResource {
@@ -156,46 +158,112 @@ public class IndexResource {
             .memoize()
             .indefinitely();
 
-        Uni<Ship> ship = ensureContractAccepted()
+        Uni<String> contractId = ensureContractAccepted()
             .invoke(c -> LOG.infof("Accepted contract: %s", c.toString()))
+            .map(Contract::getId)
+            .memoize()
+            .indefinitely(); // TODO: research .memoize.until(...)
+
+        // Reuse cached ship symbol ONLY!
+        Uni<String> shipSymbol = contractId
             .chain(() -> homeSystem.flatMap(this::ensureShipPurchased))
             .invoke(s -> LOG.infof("Purchased ship: %s", s.toString()))
+            .map(Ship::getSymbol)
             .memoize()
             .indefinitely();
 
+
         // TODO: verify there's only one ENGINEERED_ASTEROID
-        Uni<Waypoint> asteroid = ship.chain(() ->
+        Uni<Waypoint> asteroid = shipSymbol.chain(() ->
             homeSystem.flatMap(hs -> findWaypointsInSystem(hs.system(), WaypointType.ENGINEERED_ASTEROID, null))
         )
             .map(List::getFirst)
             .invoke(w -> LOG.infof("Located destination: %s", w.toString()));
 
-        Uni<NavigateShip200ResponseData> navigationStart = Uni.combine().all().unis(ship, asteroid).asTuple()
+        Uni<NavigateShip200ResponseData> navigationStart = Uni.combine().all().unis(fetchShip(shipSymbol), asteroid).asTuple()
             .flatMap(t -> startNavigation(t.getItem1(), t.getItem2()))
             .map(NavigateShip200Response::getData)
             .invoke(r -> LOG.infof("Started navigation: %s", r.toString()))
             .memoize()
             .indefinitely();
 
-        Uni<ShipNav> navigationFinish = Uni.combine().all().unis(ship, navigationStart).asTuple()
+        Uni<ShipNav> navigationFinish = Uni.combine().all().unis(fetchShip(shipSymbol), navigationStart).asTuple()
             .flatMap(t -> finishNavigation(t.getItem1(), t.getItem2().getNav()))
-            .invoke(r -> LOG.infof("Finished navigation: %s", r.toString()));
+            .invoke(s -> LOG.infof("Finished navigation: %s", s.toString()));
 
         Uni<RefuelShip200ResponseData> refueling = navigationFinish.chain(() ->
-            Uni.combine().all().unis(ship, navigationStart).asTuple()
+            Uni.combine().all().unis(fetchShip(shipSymbol), navigationStart).asTuple()
                 .flatMap(t -> refuelShip(t.getItem1(), t.getItem2().getFuel()))
                 .invoke(r -> LOG.infof("Ship refueled: %s", r.toString()))
         );
 
-        Uni<ExtractResources201ResponseData> extraction = refueling.chain(() -> ship.flatMap(this::ensureExtraction));
-        return extraction.replaceWith(Response.noContent().build());
+        Uni<Set<String>> requiredResources = contractId.flatMap(c -> contractsApi.getContract(c)
+                .map(r ->
+                    r.getData().getTerms()
+                        .getDeliver()
+                        .stream()
+                        .filter(g -> g.getUnitsFulfilled() >= g.getUnitsRequired())
+                        .map(ContractDeliverGood::getTradeSymbol)
+                        .collect(Collectors.toSet())
+                ))
+            .invoke(r -> LOG.infof("Resources: %s", r.toString()));
+
+        Uni<ExtractResources201ResponseData> extraction = refueling.chain(() ->
+            fetchShip(shipSymbol).flatMap(this::ensureExtraction)
+        );
+
+        Uni<Market> market = Uni.createFrom().voidItem().chain(() ->
+            asteroid.flatMap(a -> systemsApi.getMarket(a.getSystemSymbol(), a.getSymbol()))
+            .map(GetMarket200Response::getData)
+            .invoke(m -> LOG.infof("Market: %s", m.toString()))
+        );
+
+        Uni<DockShip200ResponseData> docked = shipSymbol.flatMap(s -> fleetApi.dockShip(s))
+            .map(DockShip200Response::getData);
+
+        Uni<List<PurchaseCargo201ResponseData>> cargoSold = docked.chain(() -> Uni.combine()
+            .all().unis(fetchShip(shipSymbol), requiredResources).asTuple()
+            .map(t ->
+                t.getItem1()
+                    .getCargo()
+                    .getInventory()
+                    .stream()
+                    .peek(r -> LOG.infof("Resource in cargo hold: %s", r.toString()))
+                    .filter(cargoItem -> !t.getItem2().contains(cargoItem.getSymbol().value()))
+                    .map(cargoItem -> Tuple2.of(t.getItem1(), cargoItem))
+                    .toList()
+            )
+            .onItem().transformToMulti(Multi.createFrom()::iterable)
+            .onItem().transformToUniAndConcatenate(t ->
+                sellCargo(t.getItem1(), t.getItem2()).onItem().delayIt().by(Duration.ofMillis(600))
+            )
+            .invoke(r -> LOG.infof("Cargo sold: %s", r.toString()))
+            .collect().asList());
+        return cargoSold.replaceWith(Response.noContent().build());
+    }
+
+    @CacheInvalidateAll(cacheName = "agent")
+    @CacheInvalidateAll(cacheName = "ships")
+    protected Uni<PurchaseCargo201ResponseData> sellCargo(Ship ship, ShipCargoItem cargo) {
+        SellCargoRequest scr = new SellCargoRequest();
+        scr.setSymbol(cargo.getSymbol());
+        scr.setUnits(cargo.getUnits());
+        return fleetApi.sellCargo(ship.getSymbol(), scr)
+            .map(SellCargo201Response::getData);
+    }
+
+    private Uni<Ship> fetchShip(Uni<String> shipSymbol) {
+        return shipSymbol.flatMap(s -> fleetApi.getMyShip(s))
+            .map(GetMyShip200Response::getData);
     }
 
     protected Uni<ExtractResources201ResponseData> ensureExtraction(Ship ship) {
         // TODO: check if ship is in orbit first
+        // TODO: sell immediately if not in requiredResources
         return fleetApi.orbitShip(ship.getSymbol())
             .chain(() -> extractResources(ship))
             .invoke(r -> LOG.infof("Resources extracted: %s", r.toString()))
+            .call(() -> fleetApi.dockShip(ship.getSymbol()))
             .call(r ->
                 Uni.createFrom().voidItem().onItem().delayIt().by(
                     Duration.ofSeconds(r.getCooldown().getRemainingSeconds())
