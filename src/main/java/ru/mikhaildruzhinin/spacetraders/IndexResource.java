@@ -28,6 +28,8 @@ public class IndexResource {
 
     private static final Logger LOG = Logger.getLogger(IndexResource.class);
 
+    public static final Duration STREAM_UPDATE_FREQUENCY = Duration.ofSeconds(2);
+
     @RestClient
     @Inject
     GlobalApi globalApi;
@@ -69,49 +71,63 @@ public class IndexResource {
         return Uni.createFrom().item(Templates.index());
     }
 
-    @GET
-    @Path("/events")
-    @Produces(MediaType.SERVER_SENT_EVENTS)
-    // TODO: check out ServerSentEvent type
-    public Multi<OutboundSseEvent> events() {
-        Duration streamUpdateFrequency = Duration.ofSeconds(2);
 
-        Multi<OutboundSseEvent> statusEventStream = Multi.createFrom().ticks().every(streamUpdateFrequency)
+    @GET
+    @Path("/status")
+    @Produces(MediaType.SERVER_SENT_EVENTS)
+    public Multi<OutboundSseEvent> status() {
+        Duration streamUpdateFrequency = Duration.ofSeconds(2);
+        return Multi.createFrom().ticks().every(streamUpdateFrequency)
             .onOverflow()
             .drop()
             .onItem().transformToUniAndConcatenate(tick -> fetchStatus())
             .map(status -> sse.newEventBuilder().name("status").data(status).build());
+    }
 
-        Multi<OutboundSseEvent> agentEventStream = Multi.createFrom().ticks().every(streamUpdateFrequency)
+    @GET
+    @Path("/agent")
+    @Produces(MediaType.SERVER_SENT_EVENTS)
+    public Multi<OutboundSseEvent> agent() {
+        Duration streamUpdateFrequency = Duration.ofSeconds(2);
+
+        return Multi.createFrom().ticks().every(streamUpdateFrequency)
             .onOverflow()
             .drop()
             .onItem().transformToUniAndConcatenate(tick ->
                 fetchMyAgent().map(Templates::agent)
                     .flatMap(t -> Uni.createFrom().completionStage(t.renderAsync()))
             ).map(e -> sse.newEventBuilder().name("agent").data(e).build());
+    }
 
-        Multi<OutboundSseEvent> contractEventStream = Multi.createFrom().ticks().every(streamUpdateFrequency)
+    @GET
+    @Path("/contracts")
+    @Produces(MediaType.SERVER_SENT_EVENTS)
+    // TODO: check out ServerSentEvent type
+    public Multi<OutboundSseEvent> contracts() {
+        Duration streamUpdateFrequency = Duration.ofSeconds(2);
+
+        return Multi.createFrom().ticks().every(streamUpdateFrequency)
             .onOverflow()
             .drop()
             .onItem().transformToUniAndConcatenate(tick ->
                 fetchContracts().map(Templates::contracts)
                     .flatMap(t -> Uni.createFrom().completionStage(t.renderAsync()))
             ).map(e -> sse.newEventBuilder().name("contracts").data(e).build());
+    }
 
-        Multi<OutboundSseEvent> shipEventStream = Multi.createFrom().ticks().every(streamUpdateFrequency)
+    @GET
+    @Path("/ships")
+    @Produces(MediaType.SERVER_SENT_EVENTS)
+    // TODO: check out ServerSentEvent type
+    public Multi<OutboundSseEvent> ships() {
+
+        return Multi.createFrom().ticks().every(STREAM_UPDATE_FREQUENCY)
             .onOverflow()
             .drop()
             .onItem().transformToUniAndConcatenate(tick ->
                 fetchShips().map(Templates::ships)
                     .flatMap(t -> Uni.createFrom().completionStage(t.renderAsync()))
             ).map(e -> sse.newEventBuilder().name("ships").data(e).build());
-
-        return Multi.createBy().merging().streams(
-            statusEventStream,
-            agentEventStream,
-            contractEventStream,
-            shipEventStream
-        );
     }
 
     @CacheResult(cacheName = "status")

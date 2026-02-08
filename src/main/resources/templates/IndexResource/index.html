@@ -3,7 +3,7 @@
         <div class="m-1">
             <p class="mb-2"
                hx-ext="sse"
-               sse-connect="/events"
+               sse-connect="/status"
                sse-swap="status">
                 Loading status...
             </p>
@@ -15,21 +15,21 @@
             <div id="agent"
                  class="mb-2"
                  hx-ext="sse"
-                 sse-connect="/events"
+                 sse-connect="/agent"
                  sse-swap="agent">
                 Loading agent...
             </div>
             <div id="contracts"
                  class="mb-2"
                  hx-ext="sse"
-                 sse-connect="/events"
+                 sse-connect="/contracts"
                  sse-swap="contracts">
                 Loading contracts...
             </div>
             <div id="ships"
                  class="mb-2"
                  hx-ext="sse"
-                 sse-connect="/events"
+                 sse-connect="/ships"
                  sse-swap="ships">
                 Loading ships...
             </div>
