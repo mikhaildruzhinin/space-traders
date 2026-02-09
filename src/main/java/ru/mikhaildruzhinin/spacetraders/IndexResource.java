@@ -17,9 +17,10 @@ import org.eclipse.microprofile.rest.client.inject.RestClient;
 import org.jboss.logging.Logger;
 import ru.mikhaildruzhinin.spacetraders.generated.client.api.*;
 import ru.mikhaildruzhinin.spacetraders.generated.client.model.*;
+import ru.mikhaildruzhinin.spacetraders.ship.ShipService;
+import ru.mikhaildruzhinin.spacetraders.ship.ShipSymbol;
 
 import java.time.Duration;
-import java.time.OffsetDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -52,6 +53,9 @@ public class IndexResource {
 
     @Inject
     Sse sse;
+
+    @Inject
+    ShipService shipService;
 
     @CheckedTemplate
     public static class Templates {
@@ -125,7 +129,7 @@ public class IndexResource {
             .onOverflow()
             .drop()
             .onItem().transformToUniAndConcatenate(tick ->
-                fetchShips().map(Templates::ships)
+                shipService.fetchShips().map(Templates::ships)
                     .flatMap(t -> Uni.createFrom().completionStage(t.renderAsync()))
             ).map(e -> sse.newEventBuilder().name("ships").data(e).build());
     }
@@ -146,12 +150,7 @@ public class IndexResource {
             .map(response -> response.getData().getContract());
     }
 
-    // TODO: add pagination
-    @CacheResult(cacheName = "ships")
-    protected Uni<List<Ship>> fetchShips() {
-        return fleetApi.getMyShips(1, 20)
-            .map(GetMyShips200Response::getData);
-    }
+
 
     private boolean checkIfDocked(Ship s) {
         return s.getNav().getStatus() == ShipNavStatus.DOCKED;
@@ -183,7 +182,6 @@ public class IndexResource {
         // Reuse cached ship symbol ONLY!
         Uni<ShipSymbol> shipSymbol = contractId
             .chain(() -> homeSystem.flatMap(this::ensureShipPurchased))
-            .invoke(s -> LOG.infof("Purchased ship: %s", s.toString()))
             .map(ShipSymbol::from)
             .memoize()
             .indefinitely();
@@ -197,19 +195,17 @@ public class IndexResource {
             .invoke(w -> LOG.infof("Located destination: %s", w.toString()));
 
         Uni<NavigateShip200ResponseData> navigationStart = Uni.combine().all().unis(shipSymbol, asteroid).asTuple()
-            .flatMap(t -> startNavigation(t.getItem1(), t.getItem2()))
+            .flatMap(t -> shipService.startNavigation(t.getItem1(), t.getItem2()))
             .map(NavigateShip200Response::getData)
-            .invoke(r -> LOG.infof("Started navigation: %s", r.toString()))
             .memoize()
             .indefinitely();
 
         Uni<ShipNav> navigationFinish = Uni.combine().all().unis(shipSymbol, navigationStart).asTuple()
-            .flatMap(t -> finishNavigation(t.getItem1(), t.getItem2().getNav()))
-            .invoke(s -> LOG.infof("Finished navigation: %s", s.toString()));
+            .flatMap(t -> shipService.finishNavigation(t.getItem1(), t.getItem2().getNav()));
 
         Uni<RefuelShip200ResponseData> refueling = navigationFinish.chain(() ->
             Uni.combine().all().unis(shipSymbol, navigationStart).asTuple()
-                .flatMap(t -> refuelShip(t.getItem1(), t.getItem2().getFuel()))
+                .flatMap(t -> shipService.refuelShip(t.getItem1(), t.getItem2().getFuel()))
                 .invoke(r -> LOG.infof("Ship refueled: %s", r.toString()))
         );
 
@@ -276,10 +272,7 @@ public class IndexResource {
     protected Uni<ExtractResources201ResponseData> ensureExtraction(ShipSymbol ship) {
         // TODO: check if ship is in orbit first
         // TODO: sell immediately if not in requiredResources
-        return fleetApi.orbitShip(ship.getSymbol())
-            .chain(() -> extractResources(ship))
-            .invoke(r -> LOG.infof("Resources extracted: %s", r.toString()))
-            .call(() -> fleetApi.dockShip(ship.getSymbol()))
+        return shipService.extractResources(ship)
             .call(r ->
                 Uni.createFrom().voidItem().onItem().delayIt().by(
                     Duration.ofSeconds(r.getCooldown().getRemainingSeconds())
@@ -290,56 +283,6 @@ public class IndexResource {
             }).select().last().toUni();
     }
 
-    @CacheInvalidateAll(cacheName = "ships")
-    protected Uni<ExtractResources201ResponseData> extractResources(ShipSymbol ship) {
-        return fleetApi.extractResources(ship.getSymbol()).map(ExtractResources201Response::getData);
-    }
-
-    @CacheInvalidateAll(cacheName = "agent")
-    @CacheInvalidateAll(cacheName = "ships")
-    protected Uni<RefuelShip200ResponseData> refuelShip(ShipSymbol ship, ShipFuel fuel) {
-        // TODO: handle unhappy paths
-        RefuelShipRequest rsr = new RefuelShipRequest();
-        rsr.setUnits(fuel.getConsumed().getAmount());
-        return fleetApi.refuelShip(ship.getSymbol(), rsr).map(RefuelShip200Response::getData);
-    }
-
-    @CacheInvalidateAll(cacheName = "ships")
-    protected Uni<ShipNav> finishNavigation(ShipSymbol ship, ShipNav nav) {
-        ShipNavRoute route = nav.getRoute();
-        OffsetDateTime departureTime = route.getDepartureTime();
-        OffsetDateTime arrivalTime = route.getArrival();
-
-        Duration flightDuration = Duration.between(departureTime, arrivalTime);
-        if (flightDuration.isNegative()) {
-            flightDuration = Duration.ZERO;
-        }
-
-        return Uni.createFrom().voidItem()
-            .onItem().delayIt().by(flightDuration)
-            .chain(() -> fleetApi.dockShip(ship.getSymbol()))
-            .map(r -> r.getData().getNav());
-    }
-
-    @CacheInvalidateAll(cacheName = "ships")
-    protected Uni<NavigateShip200Response> startNavigation(ShipSymbol ship, Waypoint destination) {
-
-        // TODO: handle events
-        // class NavigateShip200ResponseData {
-        //     ...
-        //     events: [class ShipConditionEvent {
-        //         symbol: THERMAL_STRESS
-        //         component: FRAME
-        //         name: Thermal Stress
-        //         description: Experiencing extreme temperature fluctuations during navigation induced thermal stress on the ship's frame. Although structural integrity remains uncompromised, prolonged exposure may lead to material fatigue.
-        //     }]
-        // }
-
-        NavigateShipRequest nsr = new NavigateShipRequest();
-        nsr.setWaypointSymbol(destination.getSymbol());
-        return fleetApi.orbitShip(ship.getSymbol()).chain(() -> fleetApi.navigateShip(ship.getSymbol(), nsr));
-    }
-
     private Uni<Contract> ensureContractAccepted() {
         return fetchContracts()
             .flatMap(this::ensureContractExists)
@@ -347,7 +290,7 @@ public class IndexResource {
     }
 
     private Uni<List<Contract>> ensureContractExists(List<Contract> contracts) {
-        return fetchShips().flatMap(ships -> {
+        return shipService.fetchShips().flatMap(ships -> {
             if (contracts == null || contracts.isEmpty()) {
                 Optional<Ship> maybeDockedShip = ships.stream().filter(this::checkIfDocked).findAny();
                 if (maybeDockedShip.isPresent()) {
@@ -372,7 +315,7 @@ public class IndexResource {
         return findWaypointsInSystem(system.system(), null, List.of(WaypointTraitSymbol.SHIPYARD))
             .flatMap(this::getShipyards)
             .map(List::getFirst)
-            .flatMap(s -> purchaseShip(s, ShipType.SHIP_MINING_DRONE));
+            .flatMap(s -> shipService.purchaseShip(s, ShipType.SHIP_MINING_DRONE));
     }
 
     private Uni<List<Shipyard>> getShipyards(List<Waypoint> waypoints) {
@@ -381,16 +324,6 @@ public class IndexResource {
             .map(GetShipyard200Response::getData)
             .filter(x -> (x.getShips() != null && !x.getShips().isEmpty()))
             .collect().asList();
-    }
-
-    @SuppressWarnings("SameParameterValue")
-    @CacheInvalidateAll(cacheName = "agent")
-    @CacheInvalidateAll(cacheName = "ships")
-    protected Uni<Ship> purchaseShip(Shipyard shipyard, ShipType type) {
-        PurchaseShipRequest psr = new PurchaseShipRequest();
-        psr.setShipType(type);
-        psr.setWaypointSymbol(shipyard.getSymbol());
-        return fleetApi.purchaseShip(psr).map(r -> r.getData().getShip());
     }
 
     private Uni<List<Waypoint>> findWaypointsInSystem(

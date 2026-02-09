@@ -1,4 +1,4 @@
-package ru.mikhaildruzhinin.spacetraders;
+package ru.mikhaildruzhinin.spacetraders.ship;
 
 import ru.mikhaildruzhinin.spacetraders.generated.client.model.Ship;
 
