@@ -5,6 +5,7 @@ import io.quarkus.cache.CacheResult;
 import io.smallrye.mutiny.Uni;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import org.eclipse.microprofile.rest.client.inject.RestClient;
 import org.jboss.logging.Logger;
 import ru.mikhaildruzhinin.spacetraders.generated.client.api.FleetApi;
 import ru.mikhaildruzhinin.spacetraders.generated.client.model.*;
@@ -12,12 +13,15 @@ import ru.mikhaildruzhinin.spacetraders.generated.client.model.*;
 import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @ApplicationScoped
 public class ShipService {
 
     private static final Logger LOG = Logger.getLogger(ShipService.class);
 
+    @RestClient
     @Inject
     FleetApi fleetApi;
 
@@ -85,11 +89,77 @@ public class ShipService {
         return fleetApi.refuelShip(ship.getSymbol(), rsr).map(RefuelShip200Response::getData);
     }
 
-    @CacheInvalidateAll(cacheName = "ships")
-    public Uni<ExtractResources201ResponseData> extractResources(ShipSymbol ship) {
+    public Uni<ShipCargo> ensureExtraction(
+        ShipSymbol ship,
+        Set<ContractDeliverGood> requiredResources,
+        Waypoint waypoint
+    ) {
+        // TODO: check if ship is in orbit first
+        Set<String> requiredTradeSymbols = requiredResources.stream()
+            .map(ContractDeliverGood::getTradeSymbol)
+            .collect(Collectors.toSet());
+
+        boolean hasMarketplace = waypoint.getTraits()
+            .stream()
+            .map(WaypointTrait::getSymbol)
+            .collect(Collectors.toSet())
+            .contains(WaypointTraitSymbol.MARKETPLACE);
+
+        // TODO: encapsulate client calls
         return fleetApi.orbitShip(ship.getSymbol())
-            .chain(() -> fleetApi.extractResources(ship.getSymbol()))
-            .map(ExtractResources201Response::getData)
-            .invoke(r -> LOG.infof("Resources extracted: %s", r.toString()));
+            .chain(() -> extractResources(ship))
+            .invoke(r -> LOG.infof("Resources extracted: %s", r.toString()))
+            .flatMap(x -> {
+                ExtractionYield extractionYield = x.getExtraction().getYield();
+                boolean isRequired = requiredTradeSymbols.contains(extractionYield.getSymbol().value());
+
+                if (hasMarketplace && !isRequired) {
+                    return fleetApi.dockShip(ship.symbol())
+                        .chain(() -> sellCargo(ship, extractionYield))
+                        .invoke(r -> LOG.infof("Resources sold: %s", r.toString()))
+                        .chain(() -> fleetApi.getMyShip(ship.symbol()));
+                }
+                return fleetApi.getMyShip(ship.symbol());
+            }).map(GetMyShip200Response::getData)
+            .call(r ->
+                Uni.createFrom().voidItem().onItem().delayIt().by(
+                    Duration.ofSeconds(r.getCooldown().getRemainingSeconds())
+                )
+            ).repeat().until(r -> {
+                ShipCargo cargo = r.getCargo();
+                return cargo.getUnits() >= cargo.getCapacity();
+            }).select().last().toUni().map(Ship::getCargo);
     }
+
+    @CacheInvalidateAll(cacheName = "ships")
+    protected Uni<ExtractResources201ResponseData> extractResources(ShipSymbol ship) {
+        return fleetApi.extractResources(ship.getSymbol())
+            .map(ExtractResources201Response::getData);
+    }
+
+    @CacheInvalidateAll(cacheName = "agent")
+    @CacheInvalidateAll(cacheName = "ships")
+    public Uni<PurchaseCargo201ResponseData> sellCargo(Ship ship, ShipCargoItem cargo) {
+        SellCargoRequest scr = new SellCargoRequest();
+        scr.setSymbol(cargo.getSymbol());
+        scr.setUnits(cargo.getUnits());
+        return fleetApi.sellCargo(ship.getSymbol(), scr)
+            .map(SellCargo201Response::getData);
+    }
+
+    @CacheInvalidateAll(cacheName = "agent")
+    @CacheInvalidateAll(cacheName = "ships")
+    public Uni<PurchaseCargo201ResponseData> sellCargo(ShipSymbol ship, ExtractionYield yield) {
+        SellCargoRequest scr = new SellCargoRequest();
+        scr.setSymbol(yield.getSymbol());
+        scr.setUnits(yield.getUnits());
+        return fleetApi.sellCargo(ship.getSymbol(), scr)
+            .map(SellCargo201Response::getData);
+    }
+
+    private Uni<Ship> fetchShip(Uni<ShipSymbol> shipSymbol) {
+        return shipSymbol.flatMap(s -> fleetApi.getMyShip(s.symbol()))
+            .map(GetMyShip200Response::getData);
+    }
+
 }
