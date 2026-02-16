@@ -1,4 +1,4 @@
-package ru.mikhaildruzhinin.spacetraders;
+package ru.mikhaildruzhinin.spacetraders.health;
 
 import jakarta.enterprise.context.ApplicationScoped;
 import org.eclipse.microprofile.health.HealthCheck;
