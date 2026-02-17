@@ -2,7 +2,9 @@ package ru.mikhaildruzhinin.spacetraders.ship;
 
 import io.quarkus.cache.CacheInvalidateAll;
 import io.quarkus.cache.CacheResult;
+import io.smallrye.mutiny.Multi;
 import io.smallrye.mutiny.Uni;
+import io.smallrye.mutiny.tuples.Tuple2;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import org.eclipse.microprofile.rest.client.inject.RestClient;
@@ -110,15 +112,15 @@ public class ShipService {
             .chain(() -> extractResources(ship))
             .invoke(r -> LOG.infof("Resources extracted: %s", r.toString()))
             .flatMap(x -> {
-                ExtractionYield extractionYield = x.getExtraction().getYield();
-                boolean isRequired = requiredTradeSymbols.contains(extractionYield.getSymbol().value());
-
-                if (hasMarketplace && !isRequired) {
-                    return fleetApi.dockShip(ship.symbol())
-                        .chain(() -> sellCargo(ship, extractionYield))
-                        .invoke(r -> LOG.infof("Resources sold: %s", r.toString()))
-                        .chain(() -> fleetApi.getMyShip(ship.symbol()));
-                }
+//                ExtractionYield extractionYield = x.getExtraction().getYield();
+//                boolean isRequired = requiredTradeSymbols.contains(extractionYield.getSymbol().value());
+//
+//                if (hasMarketplace && !isRequired) {
+//                    return fleetApi.dockShip(ship.symbol())
+//                        .chain(() -> sellCargo(ship, extractionYield))
+//                        .invoke(r -> LOG.infof("Resources sold: %s", r.toString()))
+//                        .chain(() -> fleetApi.getMyShip(ship.symbol()));
+//                }
                 return fleetApi.getMyShip(ship.symbol());
             }).map(GetMyShip200Response::getData)
             .call(r ->
@@ -143,6 +145,7 @@ public class ShipService {
         SellCargoRequest scr = new SellCargoRequest();
         scr.setSymbol(cargo.getSymbol());
         scr.setUnits(cargo.getUnits());
+        LOG.infof("Sell cargo request: %s", scr);
         return fleetApi.sellCargo(ship.getSymbol(), scr)
             .map(SellCargo201Response::getData);
     }
@@ -157,9 +160,39 @@ public class ShipService {
             .map(SellCargo201Response::getData);
     }
 
-    private Uni<Ship> fetchShip(Uni<ShipSymbol> shipSymbol) {
-        return shipSymbol.flatMap(s -> fleetApi.getMyShip(s.symbol()))
-            .map(GetMyShip200Response::getData);
+    private Uni<Ship> fetchShip(ShipSymbol shipSymbol) {
+        return fleetApi.getMyShip(shipSymbol.symbol()).map(GetMyShip200Response::getData);
+    }
+
+    public Uni<List<ShipCargo>> ensureCargoSold(
+        ShipSymbol shipSymbol,
+        Set<ContractDeliverGood> requiredResources,
+        Waypoint waypoint
+    ) {
+        Uni<DockShip200ResponseData> docked = fleetApi.dockShip(shipSymbol.symbol()).map(DockShip200Response::getData);
+
+        Uni<Ship> ship = docked.chain(() -> fetchShip(shipSymbol));
+
+        Set<String> requiredResourcesSymbols = requiredResources.stream()
+            .map(ContractDeliverGood::getTradeSymbol)
+            .collect(Collectors.toSet());
+
+        return ship.map(s ->
+            s.getCargo()
+            .getInventory()
+            .stream()
+            .peek(r -> LOG.infof("Resource in cargo hold: %s", r.toString()))
+            .filter(cargoItem -> requiredResourcesSymbols.contains(cargoItem.getSymbol().value()))
+            .map(cargoItem -> Tuple2.of(s, cargoItem))
+            .toList()
+        )
+            .onItem().transformToMulti(Multi.createFrom()::iterable)
+            .onItem().transformToUniAndConcatenate(t ->
+                sellCargo(t.getItem1(), t.getItem2()).onItem().delayIt().by(Duration.ofSeconds(1L))
+            )
+            .invoke(r -> LOG.infof("Cargo sold: %s", r.toString()))
+            .map(PurchaseCargo201ResponseData::getCargo)
+            .collect().asList();
     }
 
 }

@@ -6,7 +6,6 @@ import io.quarkus.qute.CheckedTemplate;
 import io.quarkus.qute.TemplateInstance;
 import io.smallrye.mutiny.Multi;
 import io.smallrye.mutiny.Uni;
-import io.smallrye.mutiny.tuples.Tuple2;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
@@ -150,8 +149,6 @@ public class IndexResource {
             .map(response -> response.getData().getContract());
     }
 
-
-
     private boolean checkIfDocked(Ship s) {
         return s.getNav().getStatus() == ShipNavStatus.DOCKED;
     }
@@ -233,10 +230,13 @@ public class IndexResource {
             .invoke(m -> LOG.infof("Market: %s", m.toString()))
         );
 
-        Uni<DockShip200ResponseData> docked = shipSymbol.flatMap(s -> fleetApi.dockShip(s.symbol()))
-            .map(DockShip200Response::getData);
-
-        return extraction.replaceWith(Response.noContent().build());
+        Uni<List<ShipCargo>> cargoSold = extraction.chain(() ->
+                Uni.combine().all().unis(shipSymbol, requiredResources, asteroid).asTuple())
+            .flatMap(t ->
+                shipService.ensureCargoSold(t.getItem1(), t.getItem2(), t.getItem3()
+                )
+            );
+        return cargoSold.replaceWith(Response.noContent().build());
     }
 
     private Uni<Contract> ensureContractAccepted() {
